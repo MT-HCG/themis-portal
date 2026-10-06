@@ -248,10 +248,11 @@ window.WEB_PORTAL = (() => {
       throw e;
     }
   }
-  async function graph(method, path, body, type) {
+  // path is a OneDrive path (encoded segment by segment); suffix is appended as is (":/content?...").
+  async function graph(method, path, body, type, suffix = "") {
     const headers = { Authorization: "Bearer " + await token() };
     if (type) headers["Content-Type"] = type;
-    const r = await fetch(GRAPH + enc(path), { method, headers, body });
+    const r = await fetch(GRAPH + enc(path) + suffix, { method, headers, body });
     if (!r.ok) {
       let msg = ""; try { msg = (await r.json()).error.message; } catch (e) {}
       const err = new Error(`OneDrive へのアクセスに失敗しました（${r.status}）${msg ? "：" + msg : ""}`);
@@ -273,8 +274,8 @@ window.WEB_PORTAL = (() => {
     return JSON.parse(m[1]);
   }
   async function upload(name, text) {
-    await graph("PUT", `${CFG.folder}/${CFG.inbox}/${name}:/content?@microsoft.graph.conflictBehavior=fail`,
-                text, "application/json");
+    await graph("PUT", `${CFG.folder}/${CFG.inbox}/${name}`, text, "application/json",
+                ":/content?@microsoft.graph.conflictBehavior=fail");
   }
   const switchAccount = () => app.loginRedirect({ scopes: CFG.scopes, prompt: "select_account" });
   return { init, loadData, upload, switchAccount, user: () => account && account.username, error: null };
