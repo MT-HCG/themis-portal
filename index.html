@@ -68,7 +68,7 @@ button { cursor: pointer; }
 @media (max-width: 1180px) { .shell { grid-template-columns: 180px minmax(0, 1fr); } .pane { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); } }
 @media (max-width: 720px) { .shell { grid-template-columns: minmax(0, 1fr); } .menu { border-right: 0; border-bottom: 1px solid var(--line); } }
 
-.menu { background: var(--surface); border-right: 1px solid var(--line); padding-block: 12px; padding-inline: 10px; display: grid; align-content: start; gap: 14px; }
+.menu { background: var(--surface); border-right: 1px solid var(--line); padding-block: 12px; padding-inline: 10px; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 14px; min-width: 0; }
 .menu-group { display: grid; gap: 2px; }
 .menu-title { font-size: 11px; color: var(--muted); letter-spacing: .08em; font-weight: 700; padding: 0 8px 4px; }
 .menu button { display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 0; background: none; text-align: left; padding: 7px 8px; border-radius: 4px; }
@@ -212,7 +212,11 @@ td.ans { min-width: 112px; font-size: 12.5px; color: var(--muted); }
 .st-対応中 { background: var(--warn-soft); color: var(--warn); }
 .st-反映待ち { background: var(--info-soft); color: var(--info); }
 .st-完了 { background: var(--ok-soft); color: var(--ok); }
-.menu .hint { font-size: 11.5px; }
+.menu .hint { font-size: 11.5px; overflow-wrap: anywhere; }
+.menu .c { flex: none; }
+.summary button.count { all: unset; cursor: pointer; min-width: 24px; text-align: right; padding: 1px 4px; border-radius: 4px; text-decoration: underline; text-underline-offset: 3px; }
+.summary button.count:hover { background: var(--surface-3); }
+.summary button.count:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pane a { color: var(--accent); word-break: break-all; }
 button.mail.notice { width: 100%; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; cursor: pointer; }
 button.mail.notice:hover { background: var(--surface-2); }
@@ -371,7 +375,10 @@ function stage(i) {
 }
 const overdue = i => { const s = shown(i); return !resolved(s) && days(s.plan) !== null && days(s.plan) < 0; };
 const soon = i => !resolved(shown(i)) && days(i.eff) !== null && days(i.eff) >= 0 && days(i.eff) <= 30;
-const rolloutOpen = i => { const s = shown(i); return s.rollout === "要" && s.rstat !== "実施済"; };
+// 実施状況 実施済 / 不要 close the rollout; both carry the date they were set (店舗展開完了日).
+const ROLLOUT_CLOSED = ["実施済", "不要"];
+const rolloutDateLabel = stat => stat === "不要" ? "不要とした日" : "完了日";
+const rolloutOpen = i => { const s = shown(i); return s.rollout === "要" && !ROLLOUT_CLOSED.includes(s.rstat); };
 const rolloutUndecided = i => !["要", "不要"].includes(shown(i).rollout);
 const rolloutLate = i => { const s = shown(i); return rolloutOpen(i) && s.rstat === "未実施" && days(s.rplan) !== null && days(s.rplan) < 0; };
 function splitImpact(text) {
@@ -448,7 +455,7 @@ const chipStage = i => `<span class="chip st-${stage(i)}">${stage(i)}</span>${pe
 function rolloutChip(i) {
   const s = shown(i);
   if (s.rollout !== "要") return "";
-  if (s.rstat === "実施済") return `<span class="chip store done">店舗展開 実施済</span>`;
+  if (ROLLOUT_CLOSED.includes(s.rstat)) return `<span class="chip store done">店舗展開 ${esc(s.rstat)}</span>`;
   if (rolloutLate(i)) return `<span class="chip store late">店舗展開 予定超過</span>`;
   return `<span class="chip store">店舗展開 ${s.rstat === "未実施" ? "未実施" : "未入力"}</span>`;
 }
@@ -488,10 +495,10 @@ function render() {
       <button data-view="all" aria-current="${isAll}">${v.all[0]}<span class="c num">${v.all[1].length}</span></button>
       <button id="go-notice">お知らせ<span class="c num ${unread ? "alert" : ""}">${unread}</span></button>
     </div>
-    <div class="menu-group"><div class="menu-title">回答の保存先</div>
+    ${isAdmin() ? `<div class="menu-group"><div class="menu-title">回答の保存先</div>
       <p class="hint" style="padding:0 8px">${dirState === "web" ? `OneDrive に直接保存（${esc(WEB_PORTAL.user() || "")}）` : dirState === "granted" ? "ポータル フォルダーに接続済み" : dirState === "prompt" ? "保存するときに許可を求めます" : "未接続（最初に一度だけ選びます）"}</p>
       <button id="connect">${dirState === "web" ? "アカウントを切り替える" : dirState === "granted" || dirState === "prompt" ? "保存先を選び直す" : "保存先を接続する"}</button>
-    </div>`;
+    </div>` : ""}`;
 
   const latest = results.slice(-6).reverse();
   const stateChoices = [...STAGES, "完了予定超過", "店舗展開 未完了"];
@@ -506,7 +513,7 @@ function render() {
       右上の切替で部門・管理者の画面を確認できます。送信した内容は30分以内に正本Excelへ反映されます。</div>
     ${isAdmin() && !isAll ? summary() : ""}
     ${noticePanel(news)}
-    <section class="panel" aria-label="項目一覧">
+    <section class="panel" id="list" aria-label="項目一覧">
       <div class="panel-head"><h2>${esc(v[view][0])}</h2><span class="sub num">${list.length}件</span>
         <div class="tools">
           <input id="q" type="search" placeholder="ID・法令名・部門・回答で検索" value="${esc(q)}" aria-label="検索">
@@ -540,7 +547,7 @@ function render() {
       : `<div class="empty">${q || impFilter || deptFilter || stateFilter ? "条件に合う項目はありません。" : "該当する項目はありません。"}</div>`}
     </section>
     <section class="panel" aria-label="反映の記録">
-      <div class="panel-head"><h2>正本への反映の記録</h2><span class="sub">毎日 9:05〜18:35 の30分ごと（土日も含む）、および 9:30・13:00 に反映します</span></div>
+      <div class="panel-head"><h2>正本への反映の記録</h2><span class="sub">9:05〜18:35 の30分ごと、および 7:55・13:55 に反映します（火・水曜日は停止）</span></div>
       ${latest.length ? latest.map(r => `<div class="mail ${r.ok ? "" : "new"}"><span class="t num">${esc(r.at)}</span><span class="to">${r.ok ? "反映済み" : "反映できませんでした"}</span><span class="subj">${esc((r.ids || []).join("、") || r.file)}${r.ok ? "" : `：${esc(r.reason)}`}</span></div>`).join("") : `<div class="empty">まだ記録はありません。</div>`}
     </section>`}`;
 
@@ -560,20 +567,22 @@ function noticePanel(news) {
   </section>`;
 }
 
+// 部門別の状況 column -> 全件一覧 state filter
+const COUNT_STATE = { open: "未回答", back: "差戻し", late: "完了予定超過", wait: "確認待ち", doing: "対応中", store: "店舗展開 未完了", done: "完了" };
 function summary() {
   const rows = activeDepts().map(d => {
     const m = items.filter(i => shown(i).dept === d), c = s => m.filter(i => stage(i) === s).length;
     return { d, open: c("未回答"), back: c("差戻し"), late: m.filter(overdue).length, wait: c("確認待ち"), doing: c("対応中"), store: m.filter(rolloutOpen).length, done: c("完了") };
   });
   const sum = k => rows.reduce((a, r) => a + r[k], 0);
-  const cell = (n, cls) => `<td class="r num ${n ? cls : ""}">${n}</td>`;
+  const cell = (n, cls, d, k) => `<td class="r num ${n ? cls : ""}">${n ? `<button class="count" type="button" data-count="${k}" data-dept="${esc(d)}" title="${esc(d || "全部門")}の${esc(COUNT_STATE[k])}を一覧で表示">${n}</button>` : n}</td>`;
   const cols = [["open", "未回答", "hot"], ["back", "差戻し", "hot"], ["late", "完了予定超過", "hot"], ["wait", "承認待ち", "wait"], ["doing", "対応中", ""], ["store", "店舗展開 未完了", "wait"], ["done", "完了", ""]];
   return `<section class="panel summary" aria-label="部門別の状況">
     <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤字は対応が必要な件数</span></div>
     <div class="scroll"><table>
       <thead><tr><th>部門</th>${cols.map(([, t]) => `<th class="r">${t}</th>`).join("")}</tr></thead>
-      <tbody>${rows.map(r => `<tr>${`<td>${esc(r.d)}</td>`}${cols.map(([k, , cls]) => cell(r[k], cls)).join("")}</tr>`).join("")}</tbody>
-      <tfoot><tr><td>合計</td>${cols.map(([k]) => `<td class="r num">${sum(k)}</td>`).join("")}</tr></tfoot>
+      <tbody>${rows.map(r => `<tr><td>${esc(r.d)}</td>${cols.map(([k, , cls]) => cell(r[k], cls, r.d, k)).join("")}</tr>`).join("")}</tbody>
+      <tfoot><tr><td>合計</td>${cols.map(([k]) => cell(sum(k), "", "", k)).join("")}</tr></tfoot>
     </table></div></section>`;
 }
 
@@ -595,12 +604,12 @@ function help() {
           <ol><li>右上で自部門を選ぶと、自部門の項目だけが表示されます</li>
           <li>「対応待ち」から項目を選び、回答と完了予定日を入力して「回答を送信」</li>
           <li>管理者が承認すると完了（または対応中）に、差戻しされるとコメント付きで「対応待ち」に戻ります</li>
-          <li>店舗展開が「要」の項目は、実施状況（未実施なら実施予定日、実施済なら完了日）と実施内容を記録します</li></ol></div>
+          <li>店舗展開が「要」の項目は、実施状況（未実施なら実施予定日、実施済・不要ならその日付）と実施内容を記録します</li></ol></div>
         <div><h3>管理者の流れ</h3>
           <ol><li>「承認待ち」で部門の回答を確認し、「承認」または「差戻し」</li>
           <li>「部門未定」の項目は担当部門を選んで決定（その部門へお知らせが届きます）</li>
           <li>店舗展開の要否（要／不要）を決めます</li></ol>
-          <p class="hint">送信した内容は30分以内（毎日 9:05〜18:35）に正本Excelへ書き込まれ、「お知らせ」と「履歴」に残ります。反映前に正本側の値が変わっていた場合は上書きせず「反映できませんでした」と記録されます。</p></div>
+          <p class="hint">送信した内容は30分以内（9:05〜18:35、火・水曜日を除く）に正本Excelへ書き込まれ、「お知らせ」と「履歴」に残ります。反映前に正本側の値が変わっていた場合は上書きせず「反映できませんでした」と記録されます。</p></div>
         <div><h3>デスクトップのアイコン</h3>
           ${window.WEB_PORTAL ? `<ol><li>Edge でこのページを開く</li>
           <li>右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」</li>
@@ -648,7 +657,7 @@ function rolloutSection(i) {
   const s = shown(i), own = !isAdmin() && s.dept === role, yes = s.rollout === "要";
   const editStatus = yes && (isAdmin() || own);
   const record = yes && s.rstat
-    ? `<dl class="meta"><dt>実施状況</dt><dd>${esc(s.rstat)}</dd>${s.rstat === "実施済" ? `<dt>完了日</dt><dd class="num">${esc(s.rdone) || "—"}</dd>` : `<dt>実施予定日</dt><dd class="num">${esc(s.rplan) || "—"}${rolloutLate(i) ? ` <span class="days late">予定超過</span>` : ""}</dd>`}<dt>実施内容</dt><dd>${esc(s.rmemo) || "—"}</dd></dl>`
+    ? `<dl class="meta"><dt>実施状況</dt><dd>${esc(s.rstat)}</dd>${ROLLOUT_CLOSED.includes(s.rstat) ? `<dt>${rolloutDateLabel(s.rstat)}</dt><dd class="num">${esc(s.rdone) || "—"}</dd>` : `<dt>実施予定日</dt><dd class="num">${esc(s.rplan) || "—"}${rolloutLate(i) ? ` <span class="days late">予定超過</span>` : ""}</dd>`}<dt>実施内容</dt><dd>${esc(s.rmemo) || "—"}</dd></dl>`
     : yes ? `<p class="hint">担当部門（${esc(s.dept)}）の入力待ちです。</p>` : "";
   const need = isAdmin()
     ? `<div class="seg" role="radiogroup" aria-label="店舗展開の要否">
@@ -658,15 +667,15 @@ function rolloutSection(i) {
   const fields = `<div id="r-detail" ${yes ? "" : "hidden"}>
       <div class="row2">
         <div class="field"><label for="r-stat">実施状況（会社全体）</label>
-          <select id="r-stat"><option value="" ${s.rstat ? "" : "selected"}>選択してください</option>${["未実施", "実施済"].map(x => `<option ${x === s.rstat ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+          <select id="r-stat"><option value="" ${s.rstat ? "" : "selected"}>選択してください</option>${["未実施", "実施済", "不要"].map(x => `<option ${x === s.rstat ? "selected" : ""}>${x}</option>`).join("")}</select></div>
         <div class="field"><label for="r-plan">実施予定日</label>
           <input id="r-plan" type="date" value="${esc(toInput(s.rplan))}">${s.rplan && !parse(s.rplan) ? `<p class="hint">現在の値：${esc(s.rplan)}</p>` : ""}</div>
-        <div class="field" id="r-done-f"><label for="r-done">完了日</label>
+        <div class="field" id="r-done-f"><label for="r-done" id="r-done-l">${rolloutDateLabel(s.rstat)}</label>
           <input id="r-done" type="date" value="${esc(toInput(s.rdone))}"></div>
       </div>
       <div class="field"><label for="r-memo">実施内容</label>
         <textarea id="r-memo" placeholder="例：全店に通達・掲示物を差し替え">${esc(s.rmemo)}</textarea></div>
-      <p class="hint">未実施のときは実施予定日、実施済のときは完了日を入れてください（実施済を選ぶと今日の日付が入ります）。</p>
+      <p class="hint">未実施のときは実施予定日、実施済・不要のときは日付を入れてください（実施済・不要を選ぶと今日の日付が入ります）。</p>
     </div>`;
   const canSave = isAdmin() || editStatus;
   return `<form id="rollout" class="store-box ${rolloutOpen(i) ? "open" : ""}" novalidate>
@@ -838,7 +847,12 @@ function bind() {
   if ($("#help-close")) $("#help-close").onclick = () => { helpOpen = false; render(); };
   $("#go-notice").onclick = () => { const n = $("#notice"); if (n) n.scrollIntoView({ behavior: "smooth", block: "start" }); };
   if ($("#mark-read")) $("#mark-read").onclick = () => { const news = notices(); if (news.length) { seen[role] = news[0].t; lsSet(SEEN_STORE, seen); } render(); };
-  $("#connect").onclick = async () => {
+  document.querySelectorAll("[data-count]").forEach(b => b.onclick = () => {
+    view = "all"; deptFilter = b.dataset.dept; stateFilter = COUNT_STATE[b.dataset.count]; q = ""; impFilter = ""; selected = null; rejectOpen = false;
+    render();
+    $("#list").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  if ($("#connect")) $("#connect").onclick = async () => {
     try { await connect(); toast("保存先に接続しました。"); }
     catch (e) { if (e.name !== "AbortError") toast(e.message); }
     render();
@@ -879,10 +893,10 @@ function bind() {
     const need = () => { const x = rform.querySelector("input[name=r-need]:checked"); return x ? x.value : shown(cur).rollout; };
     const sync = () => {
       if ($("#r-detail")) $("#r-detail").hidden = need() !== "要";
-      if ($("#r-done-f")) $("#r-done-f").hidden = $("#r-stat").value !== "実施済";
+      if ($("#r-done-f")) { $("#r-done-f").hidden = !ROLLOUT_CLOSED.includes($("#r-stat").value); $("#r-done-l").textContent = rolloutDateLabel($("#r-stat").value); }
     };
     rform.querySelectorAll("input[name=r-need]").forEach(x => x.onchange = sync);
-    if ($("#r-stat")) $("#r-stat").onchange = () => { if ($("#r-stat").value === "実施済" && !$("#r-done").value) $("#r-done").value = toInput(todayText()); sync(); };
+    if ($("#r-stat")) $("#r-stat").onchange = () => { const st = $("#r-stat").value; if (ROLLOUT_CLOSED.includes(st) && (!$("#r-done").value || st !== shown(cur).rstat)) $("#r-done").value = toInput(todayText()); sync(); };
     sync();
     rform.onsubmit = e => {
       e.preventDefault();
@@ -893,11 +907,11 @@ function bind() {
         const stat = $("#r-stat").value;
         values.rstat = stat;
         values.rplan = fromInput($("#r-plan").value) || (parse(s.rplan) ? "" : s.rplan);
-        values.rdone = stat === "実施済" ? fromInput($("#r-done").value) : "";
+        values.rdone = ROLLOUT_CLOSED.includes(stat) ? fromInput($("#r-done").value) : "";
         values.rmemo = $("#r-memo").value.trim();
         if (!isAdmin() && !stat) return fail("実施状況を選んでください。");
         if (stat === "未実施" && !values.rplan) return fail("未実施のときは実施予定日を入れてください。");
-        if (stat === "実施済" && !values.rdone) return fail("実施済のときは完了日を入れてください。");
+        if (ROLLOUT_CLOSED.includes(stat) && !values.rdone) return fail(`${stat}のときは${rolloutDateLabel(stat)}を入れてください。`);
         if (values.rmemo.startsWith("=")) return fail("実施内容の先頭を「=」にはできません。");
       }
       const changed = Object.keys(values).filter(k => values[k] !== (s[k] || ""));
@@ -905,7 +919,7 @@ function bind() {
       const set = {}; for (const k of changed) set[k] = values[k];
       const log = [];
       if (set.rollout === "要") log.push(...deptLog(cur, "店舗展開が「要」になりました。実施状況を入力してください"));
-      if (set.rstat === "実施済" || (values.rstat === "実施済" && set.rdone)) log.push({ to: isAdmin() ? s.dept || ADMIN : ADMIN, text: `店舗展開 実施済（完了日 ${values.rdone}）：${cur.title}` });
+      if (ROLLOUT_CLOSED.includes(values.rstat) && (set.rstat || set.rdone)) log.push({ to: isAdmin() ? s.dept || ADMIN : ADMIN, text: `店舗展開 ${values.rstat}（${rolloutDateLabel(values.rstat)} ${values.rdone}）：${cur.title}` });
       else if (values.rstat === "未実施" && (set.rstat || set.rplan)) log.push({ to: isAdmin() ? s.dept || ADMIN : ADMIN, text: `店舗展開 実施予定 ${values.rplan}：${cur.title}` });
       send(cur, set, "rollout", log.filter(l => l.to && !UNDECIDED.includes(l.to)), "店舗展開を保存しました。");
     };
