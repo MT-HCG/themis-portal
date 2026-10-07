@@ -540,7 +540,7 @@ function render() {
       : `<div class="empty">${q || impFilter || deptFilter || stateFilter ? "条件に合う項目はありません。" : "該当する項目はありません。"}</div>`}
     </section>
     <section class="panel" aria-label="反映の記録">
-      <div class="panel-head"><h2>正本への反映の記録</h2><span class="sub">9:05〜18:35 の30分ごと、および 7:55・13:55 に反映します（火・水曜日は停止）</span></div>
+      <div class="panel-head"><h2>正本への反映の記録</h2><span class="sub">毎日 9:05〜18:35 の30分ごと（土日も含む）、および 9:30・13:00 に反映します</span></div>
       ${latest.length ? latest.map(r => `<div class="mail ${r.ok ? "" : "new"}"><span class="t num">${esc(r.at)}</span><span class="to">${r.ok ? "反映済み" : "反映できませんでした"}</span><span class="subj">${esc((r.ids || []).join("、") || r.file)}${r.ok ? "" : `：${esc(r.reason)}`}</span></div>`).join("") : `<div class="empty">まだ記録はありません。</div>`}
     </section>`}`;
 
@@ -600,7 +600,7 @@ function help() {
           <ol><li>「承認待ち」で部門の回答を確認し、「承認」または「差戻し」</li>
           <li>「部門未定」の項目は担当部門を選んで決定（その部門へお知らせが届きます）</li>
           <li>店舗展開の要否（要／不要）を決めます</li></ol>
-          <p class="hint">送信した内容は30分以内（9:05〜18:35、火・水曜日を除く）に正本Excelへ書き込まれ、「お知らせ」と「履歴」に残ります。反映前に正本側の値が変わっていた場合は上書きせず「反映できませんでした」と記録されます。</p></div>
+          <p class="hint">送信した内容は30分以内（毎日 9:05〜18:35）に正本Excelへ書き込まれ、「お知らせ」と「履歴」に残ります。反映前に正本側の値が変わっていた場合は上書きせず「反映できませんでした」と記録されます。</p></div>
         <div><h3>デスクトップのアイコン</h3>
           ${window.WEB_PORTAL ? `<ol><li>Edge でこのページを開く</li>
           <li>右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」</li>
