@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Θέμις">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#235f3c">
 <title>法改正 社内ポータル Θέμις</title>
 <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADJElEQVR4nMyXW0hUQRjH/3POqcBLum5Gaquyll1IvGSwXiqVUutFg8oS1M16CITQHuqlHvIhqpcKgixKTO2t0ofCLmZEbGqWqJl0WS8kmuZl3TTBWHeac3KXVpfdPYu3Hwz7nW+++b5vzs6cmU/Af4Rqo3w56lnERA0oogghazEPUEp/gqCFiQ1m8vtqT1nLmKWPWISw3IR97OkOUwViQaH9bHInOst1NdYEQnPi0niOf4rFhNL9YhIkODtRIQj4RAgC5IwXOIKYID9Jbu4bhclMIQ/aPyWYI3hllOok4chByORwZAjyYtXQhKwBz5JpHzBCHsSbN5EBjs1cAzeInZn9bFlWCiw2R+FeAqXvuxC+o0Bqtxv1cAcxtsC2WgjcoGPQCF+FSpK/Do/DHcTYApYYEpaXaLN8K85cQ9zW7VgI6js+IOdKoY1u+b0BEeVqBeqvV8PM9nZC0QGM/DLYHawveyP9btDutNvvih/O3kBt6iFwhIPA88jbK/sTIcvPnARWCitwNDkDhTcv4PStYmSnZEo6ubjqZ04CmfFpMJlMqGl6hSeNdZKcEZ8KubjqZ04C+elZqHj5CNPmaalV1lXhePoRyMVVPzYJaLbEINg/EJVsoIWK2oeSTrM5Gq4ix491G6p8PJC/KwnPdQ8Q5Mmx5mM1esF0x3Ynoe/HF/QaJx0Gl+vHmkBqeAC8xhvhxeRze7bZev3Txto/m7tNnQ4TkOvH+he87h50eKaLfaKNM+T6sb4B/fAEimvbkBK2DmqlF/w9Vkn6ockpdI1MoK5zQLJxhlw/wuzB+mH3jlZ3/Sz5WbA8DyN7xGyMQMmpi/Dz9nVoN2QcQcGN82j+9hGuwK5k1PnSZsSzO4Kz4CL+PkrJ1hXE2AKhpIVVB2nOjKt1z7BpvZoloXBoNzpuQJXOtRJDjE3UuYmX2O30LJYASnGZM3OmErYIxrDIiDHF2FxPWUMPocjHImOmZq0YmxcfDK3fP/tFqt6xtZAsVixYUKTiNKu7/O1j8Ym3qA2tvXqfaGUpwQp2XGCKGXmze7sn5oGZ8lzHxPusPM/pvtfUbun7CwAA//+1rIlZAAAABklEQVQDAH/kaQsIOKq+AAAAAElFTkSuQmCC">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -614,7 +619,11 @@ function help() {
           ${window.WEB_PORTAL ? `<ol><li>Edge でこのページを開く</li>
           <li>右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」</li>
           <li>デスクトップとスタートメニューに「法改正 社内ポータル Θέμις」ができます</li></ol>
-          <p class="hint">回答は OneDrive の「社内対応管理 › ポータル › 回答」に直接保存されます。フォルダーの接続やダウンロード・アップロードは不要です。</p></div>` : `
+          <p class="hint">回答は OneDrive の「社内対応管理 › ポータル › 回答」に直接保存されます。フォルダーの接続やダウンロード・アップロードは不要です。</p></div>
+          <div><h3>iPhone のホーム画面</h3>
+          <ol><li>Safari でこのページを開き、会社の Microsoft アカウントでサインイン</li>
+          <li>共有ボタン（□に↑）→「ホーム画面に追加」→「追加」</li>
+          <li>ホーム画面に「Θέμις」のアイコンができます（初回だけアイコンから開いてもう一度サインインします）</li></ol></div>` : `
           <ol><li>エクスプローラーで「OneDrive › 社内対応管理 › ポータル」を開く</li>
           <li>setup.cmd をダブルクリック → デスクトップに「Θέμις」のアイコンができます</li></ol>
           <p class="hint">初回の送信時に「保存先を接続する」で、同じ「ポータル」フォルダーを選びます。</p></div>`}
