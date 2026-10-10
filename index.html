@@ -109,6 +109,11 @@ td.r, th.r { text-align: right; }
 .empty { padding: 28px 12px; color: var(--muted); text-align: center; }
 .summary td.hot { color: var(--bad); font-weight: 700; }
 .summary td.wait { color: var(--info); font-weight: 700; }
+/* Same look as the menu's alert counts: a filled circle with a white number */
+.summary td.pill-bad button.count, .summary td.pill-warn button.count { text-decoration: none; display: inline-block; min-width: 24px; padding: 1px 7px; border-radius: 99px; text-align: center; color: #fff; font-weight: 700; box-sizing: border-box; }
+.summary td.pill-bad button.count { background: var(--bad); }
+.summary td.pill-warn button.count { background: #b98100; }
+.summary td.pill-bad button.count:hover, .summary td.pill-warn button.count:hover { filter: brightness(1.12); }
 .summary tfoot td { font-weight: 700; }
 
 .chip { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
@@ -405,6 +410,7 @@ if (role !== ADMIN && !depts.includes(role)) role = ADMIN;
 const isAdmin = () => role === ADMIN;
 let seen = lsGet(SEEN_STORE, {});
 
+let showRecord = lsGet("houkaisei-portal-record", false);
 let view = "todo", selected = null, q = "", impFilter = "", deptFilter = "", stateFilter = "", helpOpen = !DATA, rejectOpen = false;
 let sort = { key: "eff", dir: 1 };
 let dirHandle = null, dirState = "unknown";
@@ -518,7 +524,7 @@ function render() {
       ? "<b>管理者の画面</b>：部門の回答と完了予定日を確認し、「承認」または「差戻し」します。担当部門の決定・変更、店舗展開の要否もここで決めます。"
       : `<b>${esc(role)}の画面</b>：自部門の項目が表示されます。回答と<b>完了予定日</b>を入力して送信すると、管理者の確認待ちになります。`}
       右上の切替で部門・管理者の画面を確認できます。送信した内容は30分以内に正本Excelへ反映されます。</div>
-    ${isAdmin() && !isAll ? summary() : ""}
+    ${isAdmin() ? summary() : ""}
     ${noticePanel(news)}
     <section class="panel" id="list" aria-label="項目一覧">
       <div class="panel-head"><h2>${esc(v[view][0])}</h2><span class="sub num">${list.length}件</span>
@@ -554,8 +560,9 @@ function render() {
       : `<div class="empty">${q || impFilter || deptFilter || stateFilter ? "条件に合う項目はありません。" : "該当する項目はありません。"}</div>`}
     </section>
     <section class="panel" aria-label="反映の記録">
-      <div class="panel-head"><h2>正本への反映の記録</h2><span class="sub">9:05〜18:35 の30分ごと、および 7:55・13:55 に反映します（火・水曜日は停止）</span></div>
-      ${latest.length ? latest.map(r => `<div class="mail ${r.ok ? "" : "new"}"><span class="t num">${esc(r.at)}</span><span class="to">${r.ok ? "反映済み" : "反映できませんでした"}</span><span class="subj">${esc((r.ids || []).join("、") || r.file)}${r.ok ? "" : `：${esc(r.reason)}`}</span></div>`).join("") : `<div class="empty">まだ記録はありません。</div>`}
+      <div class="panel-head"><h2>正本への反映の記録</h2><span class="sub">9:05〜18:35 の30分ごと、および 7:55・13:55 に反映します（火・水曜日は停止）</span>
+        <div class="tools"><button class="btn" id="toggle-record" type="button" aria-expanded="${showRecord}">${showRecord ? "非表示" : "表示"}</button></div></div>
+      ${!showRecord ? "" : latest.length ? latest.map(r => `<div class="mail ${r.ok ? "" : "new"}"><span class="t num">${esc(r.at)}</span><span class="to">${r.ok ? "反映済み" : "反映できませんでした"}</span><span class="subj">${esc((r.ids || []).join("、") || r.file)}${r.ok ? "" : `：${esc(r.reason)}`}</span></div>`).join("") : `<div class="empty">まだ記録はありません。</div>`}
     </section>`}`;
 
   const cur = items.find(i => i.id === selected);
@@ -583,13 +590,13 @@ function summary() {
   });
   const sum = k => rows.reduce((a, r) => a + r[k], 0);
   const cell = (n, cls, d, k) => `<td class="r num ${n ? cls : ""}">${n ? `<button class="count" type="button" data-count="${k}" data-dept="${esc(d)}" title="${esc(d || "全部門")}の${esc(COUNT_STATE[k])}を一覧で表示">${n}</button>` : n}</td>`;
-  const cols = [["open", "未回答", "hot"], ["back", "差戻し", "hot"], ["late", "完了予定超過", "hot"], ["wait", "承認待ち", "wait"], ["doing", "対応中", ""], ["store", "店舗展開 未完了", "wait"], ["done", "完了", ""]];
+  const cols = [["open", "未回答", "pill-bad"], ["back", "差戻し", "hot"], ["late", "完了予定超過", "pill-bad"], ["wait", "承認待ち", "wait"], ["doing", "対応中", "pill-warn"], ["store", "店舗展開 未完了", "pill-bad"], ["done", "完了", ""]];
   return `<section class="panel summary" aria-label="部門別の状況">
-    <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤字は対応が必要な件数</span></div>
+    <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤丸は対応が必要な件数・黄丸は対応中（数字をクリックすると一覧に絞り込み）</span></div>
     <div class="scroll"><table>
       <thead><tr><th>部門</th>${cols.map(([, t]) => `<th class="r">${t}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(r => `<tr><td>${esc(r.d)}</td>${cols.map(([k, , cls]) => cell(r[k], cls, r.d, k)).join("")}</tr>`).join("")}</tbody>
-      <tfoot><tr><td>合計</td>${cols.map(([k]) => cell(sum(k), "", "", k)).join("")}</tr></tfoot>
+      <tfoot><tr><td>合計</td>${cols.map(([k, , cls]) => cell(sum(k), cls, "", k)).join("")}</tr></tfoot>
     </table></div></section>`;
 }
 
@@ -858,6 +865,7 @@ function bind() {
   if ($("#help-close")) $("#help-close").onclick = () => { helpOpen = false; render(); };
   $("#go-notice").onclick = () => { const n = $("#notice"); if (n) n.scrollIntoView({ behavior: "smooth", block: "start" }); };
   if ($("#mark-read")) $("#mark-read").onclick = () => { const news = notices(); if (news.length) { seen[role] = news[0].t; lsSet(SEEN_STORE, seen); } render(); };
+  if ($("#toggle-record")) $("#toggle-record").onclick = () => { showRecord = !showRecord; lsSet("houkaisei-portal-record", showRecord); render(); };
   document.querySelectorAll("[data-count]").forEach(b => b.onclick = () => {
     view = "all"; deptFilter = b.dataset.dept; stateFilter = COUNT_STATE[b.dataset.count]; q = ""; impFilter = ""; selected = null; rejectOpen = false;
     render();
