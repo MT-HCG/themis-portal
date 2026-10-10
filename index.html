@@ -109,11 +109,16 @@ td.r, th.r { text-align: right; }
 .empty { padding: 28px 12px; color: var(--muted); text-align: center; }
 .summary td.hot { color: var(--bad); font-weight: 700; }
 .summary td.wait { color: var(--info); font-weight: 700; }
+@media (min-width: 721px) {
+  .summary { position: sticky; top: var(--appbar-h, 44px); z-index: 3; box-shadow: 0 -14px 0 var(--bg), 0 6px 10px -6px rgba(0, 0, 0, .25); }
+  #list, #notice, .panel[aria-label="使い方"] { scroll-margin-top: calc(var(--appbar-h, 44px) + var(--summary-h, 0px) + 12px); }
+}
 /* Same look as the menu's alert counts: a filled circle with a white number */
-.summary td.pill-bad button.count, .summary td.pill-warn button.count { text-decoration: none; display: inline-block; min-width: 24px; padding: 1px 7px; border-radius: 99px; text-align: center; color: #fff; font-weight: 700; box-sizing: border-box; }
+.summary td.pill-bad button.count, .summary td.pill-warn button.count, .summary td.pill-info button.count { text-decoration: none; display: inline-block; min-width: 24px; padding: 1px 7px; border-radius: 99px; text-align: center; color: #fff; font-weight: 700; box-sizing: border-box; }
 .summary td.pill-bad button.count { background: var(--bad); }
 .summary td.pill-warn button.count { background: #b98100; }
-.summary td.pill-bad button.count:hover, .summary td.pill-warn button.count:hover { filter: brightness(1.12); }
+.summary td.pill-info button.count { background: #3b5ba8; }
+.summary td.pill-bad button.count:hover, .summary td.pill-warn button.count:hover, .summary td.pill-info button.count:hover { filter: brightness(1.12); }
 .summary tfoot td { font-weight: 700; }
 
 .chip { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
@@ -210,7 +215,7 @@ table.wide td.ans { white-space: normal; min-width: 200px; max-width: 320px; }
 .helpbtn:hover { background: color-mix(in srgb, var(--accent-fg) 14%, transparent); }
 .help { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 16px; padding: 14px; align-items: start; }
 .help img { width: 160px; height: 160px; }
-.help ol { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; }
+.help ol, .help ul { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; }
 .help h3 { font-size: 13.5px; margin-bottom: 4px; }
 .help .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
 @media (max-width: 720px) { .help { grid-template-columns: minmax(0, 1fr); } }
@@ -516,15 +521,9 @@ function render() {
   const latest = results.slice(-6).reverse();
   const stateChoices = [...STAGES, "完了予定超過", "店舗展開 未完了"];
   $("#main").innerHTML = `
+    ${DATA && isAdmin() ? summary() : ""}
     ${helpOpen ? help() : ""}
     ${!DATA ? "" : `
-    <div class="banner">${isAll
-      ? "<b>全件一覧</b>：全部門の項目と回答を一覧で見られます。部門・状態・重要度で絞り込み、見出しをクリックすると並べ替えます。" + (isAdmin() ? "" : "他部門の項目は閲覧のみです。")
-      : isAdmin()
-      ? "<b>管理者の画面</b>：部門の回答と完了予定日を確認し、「承認」または「差戻し」します。担当部門の決定・変更、店舗展開の要否もここで決めます。"
-      : `<b>${esc(role)}の画面</b>：自部門の項目が表示されます。回答と<b>完了予定日</b>を入力して送信すると、管理者の確認待ちになります。`}
-      右上の切替で部門・管理者の画面を確認できます。送信した内容は30分以内に正本Excelへ反映されます。</div>
-    ${isAdmin() ? summary() : ""}
     ${noticePanel(news)}
     <section class="panel" id="list" aria-label="項目一覧">
       <div class="panel-head"><h2>${esc(v[view][0])}</h2><span class="sub num">${list.length}件</span>
@@ -568,7 +567,14 @@ function render() {
   const cur = items.find(i => i.id === selected);
   $("#pane").innerHTML = cur ? detail(cur) : `<div class="empty">${DATA ? "一覧から項目を選んでください。" : "データがまだありません。"}</div>`;
   bind();
+  stickyOffsets();
 }
+function stickyOffsets() {
+  const root = document.documentElement.style, bar = $(".appbar"), sum = $(".summary");
+  root.setProperty("--appbar-h", `${bar ? bar.offsetHeight : 44}px`);
+  root.setProperty("--summary-h", `${sum ? sum.offsetHeight : 0}px`);
+}
+window.addEventListener("resize", stickyOffsets);
 
 function noticePanel(news) {
   const last = seen[role] || "";
@@ -590,9 +596,9 @@ function summary() {
   });
   const sum = k => rows.reduce((a, r) => a + r[k], 0);
   const cell = (n, cls, d, k) => `<td class="r num ${n ? cls : ""}">${n ? `<button class="count" type="button" data-count="${k}" data-dept="${esc(d)}" title="${esc(d || "全部門")}の${esc(COUNT_STATE[k])}を一覧で表示">${n}</button>` : n}</td>`;
-  const cols = [["open", "未回答", "pill-bad"], ["back", "差戻し", "hot"], ["late", "完了予定超過", "pill-bad"], ["wait", "承認待ち", "wait"], ["doing", "対応中", "pill-warn"], ["store", "店舗展開 未完了", "pill-bad"], ["done", "完了", ""]];
+  const cols = [["open", "未回答", "pill-bad"], ["back", "差戻し", "pill-warn"], ["late", "完了予定超過", "pill-bad"], ["wait", "承認待ち", "pill-info"], ["doing", "対応中", "pill-warn"], ["store", "店舗展開 未完了", "pill-bad"], ["done", "完了", ""]];
   return `<section class="panel summary" aria-label="部門別の状況">
-    <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤丸は対応が必要な件数・黄丸は対応中（数字をクリックすると一覧に絞り込み）</span></div>
+    <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤丸は対応が必要・黄丸は差戻し／対応中・青丸は承認待ち（数字をクリックすると一覧に絞り込み）</span></div>
     <div class="scroll"><table>
       <thead><tr><th>部門</th>${cols.map(([, t]) => `<th class="r">${t}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(r => `<tr><td>${esc(r.d)}</td>${cols.map(([k, , cls]) => cell(r[k], cls, r.d, k)).join("")}</tr>`).join("")}</tbody>
@@ -614,6 +620,11 @@ function help() {
       <img src="${ICON}" alt="Watching Over Compliance Θέμις">
       <div class="cols">
         ${DATA ? "" : `<div><h3>データが見つかりません</h3><p class="hint">${window.WEB_PORTAL ? esc(WEB_PORTAL.error || "") + "<br>会社の Microsoft アカウントでサインインし直すか、時間をおいて「最新データを読み込む」を押してください。" : ""}このファイルは OneDrive の「社内対応管理\\ポータル」フォルダーから開いてください。初回は自動更新でデータが作られるまでお待ちください。</p></div>`}
+        <div><h3>画面の見方</h3>
+          <ul><li><b>管理者の画面</b>：部門の回答と完了予定日を確認し、「承認」または「差戻し」します。担当部門の決定・変更、店舗展開の要否もここで決めます。上の「部門別の状況」は常に表示され、数字をクリックするとその一覧に絞り込みます。</li>
+          <li><b>部門の画面</b>：自部門の項目が表示されます。回答と完了予定日を入力して送信すると、管理者の確認待ちになります。</li>
+          <li><b>全件一覧</b>：全部門の項目と回答を一覧で見られます。部門・状態・重要度で絞り込み、見出しをクリックすると並べ替えます。部門の画面では、他部門の項目は閲覧のみです。</li>
+          <li>右上の「表示する画面」で部門・管理者を切り替えます。送信した内容は30分以内に正本Excelへ反映されます。</li></ul></div>
         <div><h3>部門の流れ</h3>
           <ol><li>右上で自部門を選ぶと、自部門の項目だけが表示されます</li>
           <li>「対応待ち」から項目を選び、回答と完了予定日を入力して「回答を送信」</li>
