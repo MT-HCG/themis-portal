@@ -243,6 +243,20 @@ button.mail.notice.new { background: var(--accent-soft); }
 .admin-edit { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; }
 .admin-edit summary { cursor: pointer; font-weight: 700; font-size: 13px; color: var(--muted); }
 .admin-edit[open] summary { margin-bottom: 10px; }
+/* PC (3-column layout): a fixed app frame. The page itself never scrolls; the menu, the main
+   column and the detail pane each scroll inside their own area, and 部門別の状況 stays at the
+   top of the main column. Narrower windows keep the normal page scroll. */
+@media (min-width: 1181px) {
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body { margin: 0; display: flex; flex-direction: column; }
+  .appbar { position: relative; top: 0; flex: none; }
+  .shell { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+  .menu, .main, .pane { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .menu { position: static; height: auto; }
+  .pane-inner { position: static; max-height: none; overflow: visible; }
+  .summary { top: 0; }
+  #list, #notice, .panel[aria-label="使い方"] { scroll-margin-top: calc(var(--summary-h, 0px) + 26px); }
+}
 </style>
 </head>
 <body>
@@ -571,6 +585,18 @@ function render() {
   bind();
   stickyOffsets();
 }
+// Scroll el to the top of its column. In the fixed PC frame only #main scrolls (scrollIntoView would also
+// shift the page itself); otherwise the page scrolls as usual.
+function reveal(el) {
+  const main = $("#main");
+  if (!el) return;
+  if (getComputedStyle(main).overflowY === "auto" && main.contains(el)) {
+    const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+    main.scrollTo({ top: el.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop - margin, behavior: "smooth" });
+  } else {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
 function stickyOffsets() {
   const root = document.documentElement.style, bar = $(".appbar"), sum = $(".summary");
   root.setProperty("--appbar-h", `${bar ? bar.offsetHeight : 44}px`);
@@ -876,13 +902,13 @@ function bind() {
   if ($("#dept")) $("#dept").onchange = e => { deptFilter = e.target.value; selected = null; render(); };
   if ($("#state")) $("#state").onchange = e => { stateFilter = e.target.value; selected = null; render(); };
   if ($("#help-close")) $("#help-close").onclick = () => { helpOpen = false; render(); };
-  $("#go-notice").onclick = () => { const n = $("#notice"); if (n) n.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  $("#go-notice").onclick = () => { const n = $("#notice"); if (n) reveal(n); };
   if ($("#mark-read")) $("#mark-read").onclick = () => { const news = notices(); if (news.length) { seen[role] = news[0].t; lsSet(SEEN_STORE, seen); } render(); };
   if ($("#toggle-record")) $("#toggle-record").onclick = () => { showRecord = !showRecord; lsSet("houkaisei-portal-record", showRecord); render(); };
   document.querySelectorAll("[data-count]").forEach(b => b.onclick = () => {
     view = "all"; deptFilter = b.dataset.dept; stateFilter = COUNT_STATE[b.dataset.count]; q = ""; impFilter = ""; selected = null; rejectOpen = false;
     render();
-    $("#list").scrollIntoView({ behavior: "smooth", block: "start" });
+    reveal($("#list"));
   });
   if ($("#connect")) $("#connect").onclick = async () => {
     try { await connect(); toast("保存先に接続しました。"); }
