@@ -252,10 +252,16 @@ button.mail.notice.new { background: var(--accent-soft); }
   .appbar { position: relative; top: 0; flex: none; }
   .shell { flex: 1 1 auto; min-height: 0; grid-template-rows: minmax(0, 1fr); }
   .menu, .main, .pane { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-  .menu { position: static; height: auto; }
+  .menu { position: static; height: auto; align-self: stretch; }
   .pane-inner { position: static; max-height: none; overflow: visible; }
   .summary { top: 0; }
   #list, #notice, .panel[aria-label="使い方"] { scroll-margin-top: calc(var(--summary-h, 0px) + 26px); }
+}
+/* Short PC screens: smaller logo and tighter menu so more of it fits without scrolling */
+@media (min-width: 1181px) and (max-height: 860px) {
+  .menu-logo { max-width: 112px; }
+  .menu { gap: 8px; padding-block: 8px; }
+  .menu button { padding-block: 5px; }
 }
 </style>
 </head>
