@@ -503,9 +503,15 @@ const titleCell = i => `<td class="title">${esc(i.title)}${undecided(i) ? `<span
 function toast(msg) { const el = $("#toast"); el.textContent = msg; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 5000); }
 
 // Notifications: 履歴 lines addressed to the current role, newest first.
+// Every notice for the current role, newest first; done = its item is finished (完了).
 function notices() {
-  return items.flatMap(logOf).filter(n => n.to === role).sort((a, b) => (a.t < b.t) - (a.t > b.t));
+  const doneIds = new Set(items.filter(i => stage(i) === "完了").map(i => i.id));
+  return items.flatMap(logOf).filter(n => n.to === role).map(n => ({ ...n, done: doneIds.has(n.id) }))
+    .sort((a, b) => (a.t < b.t) - (a.t > b.t));
 }
+// Shown by default: unread notices of items that are not finished yet.
+const activeNotices = news => news.filter(n => !n.done && n.t > (seen[role] || ""));
+let showPastNotices = false;
 
 function render() {
   $("#fresh").textContent = DATA ? `データ ${DATA.generatedAt} 時点` : "データ未読込";
@@ -525,7 +531,7 @@ function render() {
   const visible = isAdmin() ? items : v.all[1];
   if (!selected || !visible.some(i => i.id === selected) || (!isAll && view !== "notice" && !list.some(i => i.id === selected))) selected = list[0]?.id ?? null;
 
-  const news = notices(), unread = news.filter(n => n.t > (seen[role] || "")).length;
+  const news = notices(), unread = activeNotices(news).length;
   $("#menu").innerHTML = `
     <img class="menu-logo" src="${ICON}" alt="Watching Over Compliance Θέμις">
     <div class="menu-group"><div class="menu-title">${isAdmin() ? "管理者メニュー" : esc(role)}</div>
@@ -610,14 +616,18 @@ function stickyOffsets() {
 }
 window.addEventListener("resize", stickyOffsets);
 
+// Unread notices of unfinished items only; 過去のお知らせ shows the rest (read ones and finished items).
 function noticePanel(news) {
   const last = seen[role] || "";
-  const shownNews = news.slice(0, 8);
+  const active = activeNotices(news);
+  const shownNews = showPastNotices ? news.slice(0, 30) : active;
+  const past = news.length - active.length;
   return `<section class="panel" id="notice" aria-label="お知らせ">
-    <div class="panel-head"><h2>お知らせ（${isAdmin() ? "管理者" : esc(role)}宛て）</h2><span class="sub">担当部門への依頼・回答・承認・差戻しが届きます</span>
-      ${news.some(n => n.t > last) ? `<div class="tools"><button class="btn" id="mark-read" type="button">既読にする</button></div>` : ""}</div>
-    ${shownNews.length ? shownNews.map(n => `<button class="mail notice ${n.t > last ? "new" : ""}" data-open="${esc(n.id)}" type="button"><span class="t num">${esc(n.t.slice(5))}</span><span class="to">${esc(n.id)}</span><span class="subj">${esc(n.text)}</span></button>`).join("")
-      : `<div class="empty">お知らせはありません。</div>`}
+    <div class="panel-head"><h2>${showPastNotices ? "過去のお知らせ" : "お知らせ"}（${isAdmin() ? "管理者" : esc(role)}宛て）</h2><span class="sub">${showPastNotices ? "既読のもの・完了した項目のものを含みます" : "未読で、完了していない項目のお知らせだけを表示します"}</span>
+      <div class="tools">${active.length && !showPastNotices ? `<button class="btn" id="mark-read" type="button">既読にする</button>` : ""}
+        ${past || showPastNotices ? `<button class="btn" id="toggle-past" type="button">${showPastNotices ? "未読だけに戻す" : `過去のお知らせを表示（${past}件）`}</button>` : ""}</div></div>
+    ${shownNews.length ? shownNews.map(n => `<button class="mail notice ${!n.done && n.t > last ? "new" : ""}" data-open="${esc(n.id)}" type="button"><span class="t num">${esc(n.t.slice(5))}</span><span class="to">${esc(n.id)}${n.done ? "（完了）" : ""}</span><span class="subj">${esc(n.text)}</span></button>`).join("")
+      : `<div class="empty">新しいお知らせはありません。</div>`}
   </section>`;
 }
 
@@ -909,6 +919,7 @@ function bind() {
   if ($("#state")) $("#state").onchange = e => { stateFilter = e.target.value; selected = null; render(); };
   if ($("#help-close")) $("#help-close").onclick = () => { helpOpen = false; render(); };
   $("#go-notice").onclick = () => { const n = $("#notice"); if (n) reveal(n); };
+  if ($("#toggle-past")) $("#toggle-past").onclick = () => { showPastNotices = !showPastNotices; render(); };
   if ($("#mark-read")) $("#mark-read").onclick = () => { const news = notices(); if (news.length) { seen[role] = news[0].t; lsSet(SEEN_STORE, seen); } render(); };
   if ($("#toggle-record")) $("#toggle-record").onclick = () => { showRecord = !showRecord; lsSet("houkaisei-portal-record", showRecord); render(); };
   document.querySelectorAll("[data-count]").forEach(b => b.onclick = () => {
