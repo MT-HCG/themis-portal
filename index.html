@@ -118,11 +118,6 @@ td.r, th.r { text-align: right; }
   #list, #notice, .panel[aria-label="使い方"] { scroll-margin-top: calc(var(--appbar-h, 44px) + var(--summary-h, 0px) + 12px); }
 }
 /* Same look as the menu's alert counts: a filled circle with a white number */
-.summary td.pill-bad button.count, .summary td.pill-warn button.count, .summary td.pill-info button.count { text-decoration: none; display: inline-block; min-width: 24px; padding: 1px 7px; border-radius: 99px; text-align: center; color: #fff; font-weight: 700; box-sizing: border-box; }
-.summary td.pill-bad button.count { background: var(--bad); }
-.summary td.pill-warn button.count { background: #b98100; }
-.summary td.pill-info button.count { background: #3b5ba8; }
-.summary td.pill-bad button.count:hover, .summary td.pill-warn button.count:hover, .summary td.pill-info button.count:hover { filter: brightness(1.12); }
 .summary tfoot td { font-weight: 700; }
 
 .chip { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
@@ -235,9 +230,15 @@ td.ans { min-width: 112px; font-size: 12.5px; color: var(--muted); }
 .st-完了 { background: var(--ok-soft); color: var(--ok); }
 .menu .hint { font-size: 11.5px; overflow-wrap: anywhere; }
 .menu .c { flex: none; }
-.summary button.count { all: unset; cursor: pointer; min-width: 24px; text-align: right; padding: 1px 4px; border-radius: 4px; text-decoration: underline; text-underline-offset: 3px; }
-.summary button.count:hover { background: var(--surface-3); }
-.summary button.count:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* 部門別の状況: every count is a pill like the menu counts; non-zero counts are tinted by column */
+.summary .pill { display: inline-block; box-sizing: border-box; min-width: 26px; padding: 0 7px; border-radius: 99px; text-align: center;
+  font-size: 12px; font-weight: 700; line-height: 1.6; background: var(--surface-3); color: var(--fg); }
+.summary button.count.pill { border: 0; font-family: inherit; cursor: pointer; }
+.summary button.count.pill:hover { filter: brightness(.95); }
+.summary button.count.pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.summary .pill.pill-bad { background: var(--bad-soft); }
+.summary .pill.pill-warn { background: var(--warn-soft); }
+.summary .pill.pill-info { background: var(--info-soft); }
 .pane a { color: var(--accent); word-break: break-all; }
 button.mail.notice { width: 100%; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; cursor: pointer; }
 button.mail.notice:hover { background: var(--surface-2); }
@@ -641,10 +642,10 @@ function summary() {
     return { d, open: c("未回答"), back: c("差戻し"), late: m.filter(overdue).length, wait: c("確認待ち"), doing: c("対応中"), store: m.filter(rolloutOpen).length, done: c("完了") };
   });
   const sum = k => rows.reduce((a, r) => a + r[k], 0);
-  const cell = (n, cls, d, k) => `<td class="r num ${n ? cls : ""}">${n ? `<button class="count" type="button" data-count="${k}" data-dept="${esc(d)}" title="${esc(d || "全部門")}の${esc(COUNT_STATE[k])}を一覧で表示">${n}</button>` : n}</td>`;
+  const cell = (n, cls, d, k) => `<td class="r num">${n ? `<button class="count pill ${cls}" type="button" data-count="${k}" data-dept="${esc(d)}" title="${esc(d || "全部門")}の${esc(COUNT_STATE[k])}を一覧で表示">${n}</button>` : `<span class="pill">0</span>`}</td>`;
   const cols = [["open", "未回答", "pill-bad"], ["back", "差戻し", "pill-warn"], ["late", "完了予定超過", "pill-bad"], ["wait", "承認待ち", "pill-info"], ["doing", "対応中", "pill-warn"], ["store", "店舗展開 未完了", "pill-bad"], ["done", "完了", ""]];
   return `<section class="panel summary" aria-label="部門別の状況">
-    <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤丸は対応が必要・黄丸は差戻し／対応中・青丸は承認待ち（数字をクリックすると一覧に絞り込み）</span></div>
+    <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤は対応が必要・黄は差戻し／対応中・青は承認待ち（数字をクリックすると一覧に絞り込み）</span></div>
     <div class="scroll"><table>
       <thead><tr><th>部門</th>${cols.map(([, t]) => `<th class="r">${t}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(r => `<tr><td>${esc(r.d)}</td>${cols.map(([k, , cls]) => cell(r[k], cls, r.d, k)).join("")}</tr>`).join("")}</tbody>
