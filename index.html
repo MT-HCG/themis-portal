@@ -672,9 +672,9 @@ function summary() {
   });
   const sum = k => rows.reduce((a, r) => a + r[k], 0);
   const cell = (n, cls, d, k) => `<td class="r num">${n ? `<button class="count pill ${cls}" type="button" data-count="${k}" data-dept="${esc(d)}" title="${esc(d || "全部門")}の${esc(COUNT_STATE[k])}を一覧で表示">${n}</button>` : `<span class="pill">0</span>`}</td>`;
-  const cols = [["open", "未回答", "pill-bad"], ["back", "差戻し", "pill-warn"], ["late", "完了予定超過", "pill-bad"], ["wait", "承認待ち", "pill-info"], ["doing", "対応中", "pill-warn"], ["watch", "情報監視中", ""], ["store", "店舗展開 未完了", "pill-bad"], ["done", "完了", ""]];
+  const cols = [["open", "未回答", "pill-bad"], ["back", "差戻し", "pill-warn"], ["late", "完了予定超過", "pill-bad"], ["wait", "承認待ち", "pill-info"], ["doing", "対応中", "pill-warn"], ["watch", "情報監視中", "pill-warn"], ["store", "店舗展開 未完了", "pill-bad"], ["done", "完了", ""]];
   return `<section class="panel summary" aria-label="部門別の状況">
-    <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤は対応が必要・黄は差戻し／対応中・青は承認待ち（数字をクリックすると一覧に絞り込み）</span></div>
+    <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤は対応が必要・黄は差戻し／対応中／情報監視中・青は承認待ち（数字をクリックすると一覧に絞り込み）</span></div>
     <div class="scroll"><table>
       <thead><tr><th>部門</th>${cols.map(([, t]) => `<th class="r">${t}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(r => `<tr><td>${esc(r.d)}</td>${cols.map(([k, , cls]) => cell(r[k], cls, r.d, k)).join("")}</tr>`).join("")}</tbody>
