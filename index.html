@@ -223,6 +223,19 @@ th button.sort:focus-visible { outline: 2px solid var(--accent); outline-offset:
 th .arrow { font-size: 10px; color: var(--accent); }
 td.ans { min-width: 112px; font-size: 12.5px; color: var(--muted); }
 .ro { background: var(--surface-2); border: 1px dashed var(--line); border-radius: 6px; padding: 8px 10px; font-size: 12.5px; color: var(--muted); }
+.modal-back { position: fixed; inset: 0; background: rgb(0 0 0 / .35); display: grid; place-items: center; padding: 16px; z-index: 20; }
+.modal-back[hidden] { display: none; }
+.modal { background: var(--surface); color: var(--fg); border-radius: 8px; box-shadow: 0 10px 40px rgb(0 0 0 / .3); width: min(620px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 18px 20px; display: grid; gap: 10px; }
+.modal h2 { margin: 0; font-size: 17px; }
+.modal .sub { margin: 0; color: var(--muted); font-size: 13px; }
+.modal table.diff { width: 100%; border-collapse: collapse; font-size: 13px; }
+.modal .diff th, .modal .diff td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: pre-wrap; word-break: break-word; }
+.modal .diff thead th { font-size: 12px; color: var(--muted); }
+.modal .diff tbody th { width: 9.5em; white-space: nowrap; }
+.modal .diff td.to { font-weight: 700; }
+.modal .c-warn { margin: 0; padding: 8px 10px; border-radius: 4px; background: var(--warn-soft); color: var(--warn); font-size: 13px; font-weight: 700; }
+.modal .c-block { margin: 0; padding: 8px 10px; border-radius: 4px; background: var(--bad-soft); color: var(--bad); font-size: 13px; font-weight: 700; }
+.modal .actions { justify-content: flex-end; }
 .toast { position: fixed; right: 24px; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 10px 18px; border-radius: 6px; font-size: 13px; max-width: calc(100% - 32px); z-index: 10; }
 
 .st-対応中 { background: var(--warn-soft); color: var(--warn); }
@@ -288,6 +301,7 @@ button.mail.notice.new { background: var(--accent-soft); }
   <aside class="pane" aria-label="詳細"><div class="pane-inner" id="pane"></div></aside>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="modal-back" id="confirm" hidden></div>
 
 <script src="msal-browser.min.js"></script>
 <script>
@@ -427,6 +441,8 @@ const soon = i => !resolved(shown(i)) && days(i.eff) !== null && days(i.eff) >= 
 // 実施状況 実施済 / 不要 close the rollout; both carry the date they were set (店舗展開完了日).
 const ROLLOUT_CLOSED = ["実施済", "不要"];
 const rolloutDateLabel = stat => stat === "不要" ? "不要とした日" : "完了日";
+// 対応中 whose 対応状況 is 情報監視中: counted on its own in the summary (and not as 対応中 there).
+const monitoring = i => stage(i) === "対応中" && shown(i).status === "情報監視中";
 const rolloutOpen = i => { const s = shown(i); return s.rollout === "要" && !ROLLOUT_CLOSED.includes(s.rstat); };
 const rolloutUndecided = i => !["要", "不要"].includes(shown(i).rollout);
 const rolloutLate = i => { const s = shown(i); return rolloutOpen(i) && s.rstat === "未実施" && days(s.rplan) !== null && days(s.rplan) < 0; };
@@ -539,7 +555,8 @@ function render() {
   if (q) list = list.filter(i => [i.id, i.title, i.law, shown(i).dept, i.dest, shown(i).answer, i.impact].join(" ").includes(q));
   if (impFilter) list = list.filter(i => i.imp === impFilter);
   if (isAll && deptFilter) list = list.filter(i => shown(i).dept === deptFilter);
-  if (isAll && stateFilter) list = list.filter(i => stateFilter === "完了予定超過" ? overdue(i) : stateFilter === "店舗展開 未完了" ? rolloutOpen(i) : stage(i) === stateFilter);
+  if (isAll && stateFilter) list = list.filter(i => stateFilter === "完了予定超過" ? overdue(i) : stateFilter === "店舗展開 未完了" ? rolloutOpen(i)
+    : stateFilter === "情報監視中" ? monitoring(i) : stateFilter === "対応中" ? stage(i) === "対応中" && !monitoring(i) : stage(i) === stateFilter);
   const f = SORTERS[sort.key];
   list.sort((a, b) => ((f(a) > f(b)) - (f(a) < f(b))) * sort.dir || (days(a.eff) ?? 99999) - (days(b.eff) ?? 99999));
   const visible = isAdmin() ? items : v.all[1];
@@ -562,7 +579,7 @@ function render() {
 
   if (DENIED) $("#menu").innerHTML = `<img class="menu-logo" src="${ICON}" alt="Θέμις">`;
   const latest = results.slice(-6).reverse();
-  const stateChoices = [...STAGES, "完了予定超過", "店舗展開 未完了"];
+  const stateChoices = [...STAGES.slice(0, 4), "情報監視中", ...STAGES.slice(4), "完了予定超過", "店舗展開 未完了"];
   $("#main").innerHTML = `
     ${DATA && isAdmin() ? summary() : ""}
     ${helpOpen ? help() : ""}
@@ -647,15 +664,15 @@ function noticePanel(news) {
 }
 
 // 部門別の状況 column -> 全件一覧 state filter
-const COUNT_STATE = { open: "未回答", back: "差戻し", late: "完了予定超過", wait: "確認待ち", doing: "対応中", store: "店舗展開 未完了", done: "完了" };
+const COUNT_STATE = { open: "未回答", back: "差戻し", late: "完了予定超過", wait: "確認待ち", doing: "対応中", watch: "情報監視中", store: "店舗展開 未完了", done: "完了" };
 function summary() {
   const rows = activeDepts().map(d => {
     const m = items.filter(i => shown(i).dept === d), c = s => m.filter(i => stage(i) === s).length;
-    return { d, open: c("未回答"), back: c("差戻し"), late: m.filter(overdue).length, wait: c("確認待ち"), doing: c("対応中"), store: m.filter(rolloutOpen).length, done: c("完了") };
+    return { d, open: c("未回答"), back: c("差戻し"), late: m.filter(overdue).length, wait: c("確認待ち"), doing: c("対応中") - m.filter(monitoring).length, watch: m.filter(monitoring).length, store: m.filter(rolloutOpen).length, done: c("完了") };
   });
   const sum = k => rows.reduce((a, r) => a + r[k], 0);
   const cell = (n, cls, d, k) => `<td class="r num">${n ? `<button class="count pill ${cls}" type="button" data-count="${k}" data-dept="${esc(d)}" title="${esc(d || "全部門")}の${esc(COUNT_STATE[k])}を一覧で表示">${n}</button>` : `<span class="pill">0</span>`}</td>`;
-  const cols = [["open", "未回答", "pill-bad"], ["back", "差戻し", "pill-warn"], ["late", "完了予定超過", "pill-bad"], ["wait", "承認待ち", "pill-info"], ["doing", "対応中", "pill-warn"], ["store", "店舗展開 未完了", "pill-bad"], ["done", "完了", ""]];
+  const cols = [["open", "未回答", "pill-bad"], ["back", "差戻し", "pill-warn"], ["late", "完了予定超過", "pill-bad"], ["wait", "承認待ち", "pill-info"], ["doing", "対応中", "pill-warn"], ["watch", "情報監視中", ""], ["store", "店舗展開 未完了", "pill-bad"], ["done", "完了", ""]];
   return `<section class="panel summary" aria-label="部門別の状況">
     <div class="panel-head"><h2>部門別の状況</h2><span class="sub">赤は対応が必要・黄は差戻し／対応中・青は承認待ち（数字をクリックすると一覧に絞り込み）</span></div>
     <div class="scroll"><table>
@@ -687,7 +704,7 @@ function help() {
           <li>右上の「表示する画面」で部門・管理者を切り替えます。Web版では、サインインしたアカウントに合わせて開ける画面が決まります（部門のアカウントは自部門の画面だけ）。送信した内容は1時間以内に正本Excelへ反映されます。</li></ul></div>
         <div><h3>部門の流れ</h3>
           <ol><li>右上で自部門を選ぶと、自部門の項目だけが表示されます</li>
-          <li>「対応待ち」から項目を選び、回答と完了予定日を入力して「回答を送信」</li>
+          <li>「対応待ち」から項目を選び、部門回答・次のアクション・完了予定日を入力して「回答を送信」→ 確認画面で「保存する」（空欄があると送信できません）</li>
           <li>管理者が承認すると完了（または対応中）に、差戻しされるとコメント付きで「対応待ち」に戻ります</li>
           <li>店舗展開が「要」の項目は、実施状況（未実施なら実施予定日、実施済・不要ならその日付）と実施内容を記録します</li></ol></div>
         <div><h3>管理者の流れ</h3>
@@ -732,10 +749,10 @@ function answerForm(s, submitLabel, required) {
       <div class="field"><label for="f-plan">完了予定日${required ? `<span class="req" id="plan-req">必須</span>` : ""}</label>
         <input id="f-plan" type="date" value="${esc(toInput(s.plan))}">${plainPlan}</div>
     </div>
-    ${required ? `<p class="hint">「対応済」「対象外」以外を選んだ場合は、完了予定日が必須です。</p>` : ""}
+    ${required ? `<p class="hint">「対応済」「対象外」以外を選んだ場合は、完了予定日と次のアクションも必須です。</p>` : ""}
     <div class="field"><label for="f-answer">部門回答${required ? `<span class="req">必須</span>` : ""}</label>
       <textarea id="f-answer" placeholder="例：該当する従業員を確認、対象者なし">${answered(s) ? esc(s.answer) : ""}</textarea></div>
-    <div class="field"><label for="f-next">次のアクション</label>
+    <div class="field"><label for="f-next">次のアクション${required ? `<span class="req" id="next-req">必須</span>` : ""}</label>
       <textarea id="f-next" placeholder="例：来月の給与計算時に再確認する">${esc(s.next)}</textarea></div>
     <p class="err" id="f-err" hidden></p>
     <div class="actions"><button class="btn primary" type="submit">${submitLabel}</button></div>
@@ -915,6 +932,104 @@ async function send(cur, values, kind, log, message) {
   rejectOpen = false;
   render();
 }
+// ---- saving: every button saves what changed in both the answer and the 店舗展開 form (one answer file),
+// after a confirmation that lists the changes and the empty fields. Departments cannot save with empty
+// fields; the admin is warned and may save (e.g. 店舗展開「要」 before the department fills it in).
+const isBlank = v => NO_ANSWER.includes(String(v ?? "").trim());
+const answerMissing = v => [isBlank(v.answer) && "部門回答",
+  !DONE.includes(v.status) && isBlank(v.next) && "次のアクション", !DONE.includes(v.status) && isBlank(v.plan) && "完了予定日"].filter(Boolean);
+const rolloutNeed = cur => { const x = document.querySelector("#rollout input[name=r-need]:checked"); return x ? x.value : shown(cur).rollout; };
+
+// {set, log, missing} from the answer form, or {error} (null: no answer form on screen)
+function answerPart(cur) {
+  if (!$("#answer")) return null;
+  const s = shown(cur), dept = !isAdmin();
+  const status = $("#f-status").value, plan = fromInput($("#f-plan").value) || (parse(s.plan) ? "" : s.plan);
+  const answer = $("#f-answer").value.trim(), next = $("#f-next").value.trim();
+  const values = { status, plan, answer: answer || (answered(s) ? "(回答なし)" : s.answer || "(回答なし)"), next };
+  const set = {}; for (const k of Object.keys(values)) if (values[k] !== (s[k] || "")) set[k] = values[k];
+  const part = { set, log: [], missing: answerMissing({ status, plan, answer, next }) };
+  if (!Object.keys(set).length) return part;
+  if (dept && set.plan && parse(plan) && parse(plan) < TODAY) return { error: "完了予定日に過去の日付は指定できません。", at: "#f-err", el: $("#f-plan") };
+  if (answer.startsWith("=") || next.startsWith("=")) return { error: "先頭を「=」にはできません。", at: "#f-err" };
+  const appr = dept ? "確認待ち" : "承認済";
+  if (appr !== (s.appr || "")) set.appr = appr;
+  part.log = dept ? [{ to: ADMIN, text: `${s.dept}が回答（${status}${plan ? "・完了予定 " + plan : ""}）：${cur.title}` }]
+    : deptLog(cur, `管理者が回答を更新（${status}）`);
+  return part;
+}
+
+// {set, log, missing} from the 店舗展開 form, or {error} (null: not editable here)
+function rolloutPart(cur) {
+  const rform = $("#rollout");
+  if (!rform || !rform.querySelector("button[type=submit]")) return null;
+  const s = shown(cur), need = rolloutNeed(cur);
+  const values = isAdmin() ? { rollout: need } : {}, missing = [];
+  if (need === "要" && $("#r-stat")) {
+    const stat = $("#r-stat").value;
+    values.rstat = stat;
+    values.rplan = fromInput($("#r-plan").value) || (parse(s.rplan) ? "" : s.rplan);
+    values.rdone = ROLLOUT_CLOSED.includes(stat) ? fromInput($("#r-done").value) : "";
+    values.rmemo = $("#r-memo").value.trim();
+    if (values.rmemo.startsWith("=")) return { error: "実施内容の先頭を「=」にはできません。", at: "#r-err" };
+    if (!stat) missing.push("店舗展開 実施状況");
+    if (stat === "未実施" && !values.rplan) missing.push("店舗展開 実施予定日");
+    if (ROLLOUT_CLOSED.includes(stat) && !values.rdone) missing.push(`店舗展開 ${rolloutDateLabel(stat)}`);
+    if (!values.rmemo) missing.push("店舗展開 実施内容");
+  }
+  const set = {}; for (const k of Object.keys(values)) if (values[k] !== (s[k] || "")) set[k] = values[k];
+  const log = [], to = isAdmin() ? s.dept || ADMIN : ADMIN;
+  if (set.rollout === "要") log.push(...deptLog(cur, "店舗展開が「要」になりました。実施状況を入力してください"));
+  if (ROLLOUT_CLOSED.includes(values.rstat) && (set.rstat || set.rdone)) log.push({ to, text: `店舗展開 ${values.rstat}（${rolloutDateLabel(values.rstat)} ${values.rdone}）：${cur.title}` });
+  else if (values.rstat === "未実施" && (set.rstat || set.rplan)) log.push({ to, text: `店舗展開 実施予定 ${values.rplan}：${cur.title}` });
+  return { set, log, missing };
+}
+
+const SAVED = { answer: "回答を送信しました。管理者の確認待ちになります。", admin: "保存しました。", rollout: "店舗展開を保存しました。",
+  approve: "承認しました。", reject: "差戻しました。" };
+// trigger: "answer" | "rollout" | "approve" | "reject" (text = 差戻しコメント)
+function save(cur, trigger, text) {
+  const a = answerPart(cur), r = rolloutPart(cur), errAt = trigger === "rollout" ? "#r-err" : trigger === "answer" ? "#f-err" : "#r-err";
+  const fail = (msg, at, el) => { const box = $(at) || $("#r-err") || $("#f-err"); if (box) { box.textContent = msg; box.hidden = false; } else toast(msg); if (el) el.focus(); };
+  for (const p of [a, r]) if (p && p.error) return fail(p.error, p.at, p.el);
+  const s = shown(cur), set = {}, log = [], missing = [];
+  if (trigger === "approve") { set.appr = "承認済"; log.push(...deptLog(cur, `承認${resolved(s) ? "（完了）" : ""}`)); missing.push(...answerMissing(s)); }
+  if (trigger === "reject") { set.appr = "差戻し"; set.reject = text; log.push(...deptLog(cur, `差戻し「${text}」`)); }
+  if (a && Object.keys(a.set).length) { Object.assign(set, a.set); log.push(...a.log); }
+  if (a && (trigger === "answer" || Object.keys(a.set).length)) missing.push(...a.missing);
+  if (r && Object.keys(r.set).length) { Object.assign(set, r.set); log.push(...r.log); }
+  if (r && (trigger === "rollout" || Object.keys(r.set).length || (!isAdmin() && trigger === "answer"))) missing.push(...r.missing);
+  if (!Object.keys(set).filter(k => k !== "appr").length && !["approve", "reject"].includes(trigger)) return fail("変更がありません。", errAt);
+  const kind = trigger === "answer" && isAdmin() ? "admin" : trigger;
+  confirmSave(cur, set, [...new Set(missing)], () => send(cur, set, kind, log.filter(l => l.to && !UNDECIDED.includes(l.to)), SAVED[kind]));
+}
+
+function confirmSave(cur, set, missing, ok) {
+  const s = shown(cur), blocked = !isAdmin() && missing.length > 0;
+  const show = (k, v) => k === "rollout" && !v ? "要否未定" : v || "（空欄）";
+  const rows = Object.keys(set).map(k => `<tr><th>${esc(LABEL[k])}</th><td>${esc(show(k, s[k]))}</td><td class="to">${esc(show(k, set[k]))}</td></tr>`).join("");
+  const box = $("#confirm");
+  box.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="c-title">
+    <h2 id="c-title">保存内容の確認</h2>
+    <p class="sub"><span class="num">${esc(cur.id)}</span> ${esc(cur.title)}</p>
+    <div class="scroll"><table class="diff"><thead><tr><th>項目</th><th>今</th><th>保存後</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${missing.length ? `<p class="${blocked ? "c-block" : "c-warn"}">${blocked
+      ? `空欄の項目があるため保存できません：${esc(missing.join("・"))}。「戻って修正する」で入力してください。`
+      : `⚠ 空欄の項目があります：${esc(missing.join("・"))}。このまま保存することもできます。`}</p>` : ""}
+    <p class="hint">${blocked ? "" : "保存すると1時間以内に正本Excelへ反映されます。"}</p>
+    <div class="actions"><button class="btn" id="c-back" type="button">戻って修正する</button>
+      <button class="btn primary" id="c-ok" type="button" ${blocked ? "disabled" : ""}>保存する</button></div>
+  </div>`;
+  box.hidden = false;
+  const close = () => { box.hidden = true; box.innerHTML = ""; document.removeEventListener("keydown", esc_); };
+  const esc_ = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", esc_);
+  box.onclick = e => { if (e.target === box) close(); };
+  $("#c-back").onclick = close;
+  $("#c-ok").onclick = () => { close(); ok(); };
+  (blocked ? $("#c-back") : $("#c-ok")).focus();
+}
+
 const deptLog = (cur, text) => undecided(cur) ? [] : [{ to: shown(cur).dept, text: `${text}：${cur.title}` }];
 
 function bind() {
@@ -968,7 +1083,7 @@ function bind() {
   if (cancel) cancel.onclick = () => { for (const [f] of pendingOf(selected)) delete local.pending[f]; saveLocal(); render(); };
 
   const approve = $("#approve");
-  if (approve) approve.onclick = () => send(cur, { appr: "承認済" }, "approve", deptLog(cur, `承認${resolved(shown(cur)) ? "（完了）" : ""}`), "承認しました。");
+  if (approve) approve.onclick = () => save(cur, "approve");
   if ($("#open-reject")) $("#open-reject").onclick = () => { rejectOpen = true; render(); $("#f-reject").focus(); };
   if ($("#cancel-reject")) $("#cancel-reject").onclick = () => { rejectOpen = false; render(); };
   const reject = $("#reject");
@@ -977,12 +1092,12 @@ function bind() {
     const text = $("#f-reject").value.trim();
     if (!text) { $("#j-err").hidden = false; $("#f-reject").focus(); return; }
     if (text.startsWith("=")) { $("#j-err").textContent = "先頭を「=」にはできません。"; $("#j-err").hidden = false; return; }
-    send(cur, { appr: "差戻し", reject: text }, "reject", deptLog(cur, `差戻し「${text}」`), "差戻しました。");
+    save(cur, "reject", text);
   };
 
   const rform = $("#rollout");
   if (rform && rform.querySelector("button[type=submit]")) {
-    const need = () => { const x = rform.querySelector("input[name=r-need]:checked"); return x ? x.value : shown(cur).rollout; };
+    const need = () => rolloutNeed(cur);
     const sync = () => {
       if ($("#r-detail")) $("#r-detail").hidden = need() !== "要";
       if ($("#r-done-f")) { $("#r-done-f").hidden = !ROLLOUT_CLOSED.includes($("#r-stat").value); $("#r-done-l").textContent = rolloutDateLabel($("#r-stat").value); }
@@ -990,56 +1105,14 @@ function bind() {
     rform.querySelectorAll("input[name=r-need]").forEach(x => x.onchange = sync);
     if ($("#r-stat")) $("#r-stat").onchange = () => { const st = $("#r-stat").value; if (ROLLOUT_CLOSED.includes(st) && (!$("#r-done").value || st !== shown(cur).rstat)) $("#r-done").value = toInput(todayText()); sync(); };
     sync();
-    rform.onsubmit = e => {
-      e.preventDefault();
-      const s = shown(cur), err = $("#r-err");
-      const fail = msg => { err.textContent = msg; err.hidden = false; };
-      const values = isAdmin() ? { rollout: need() } : {};
-      if (need() === "要" && $("#r-stat")) {
-        const stat = $("#r-stat").value;
-        values.rstat = stat;
-        values.rplan = fromInput($("#r-plan").value) || (parse(s.rplan) ? "" : s.rplan);
-        values.rdone = ROLLOUT_CLOSED.includes(stat) ? fromInput($("#r-done").value) : "";
-        values.rmemo = $("#r-memo").value.trim();
-        if (!isAdmin() && !stat) return fail("実施状況を選んでください。");
-        if (stat === "未実施" && !values.rplan) return fail("未実施のときは実施予定日を入れてください。");
-        if (ROLLOUT_CLOSED.includes(stat) && !values.rdone) return fail(`${stat}のときは${rolloutDateLabel(stat)}を入れてください。`);
-        if (values.rmemo.startsWith("=")) return fail("実施内容の先頭を「=」にはできません。");
-      }
-      const changed = Object.keys(values).filter(k => values[k] !== (s[k] || ""));
-      if (!changed.length) return fail("変更がありません。");
-      const set = {}; for (const k of changed) set[k] = values[k];
-      const log = [];
-      if (set.rollout === "要") log.push(...deptLog(cur, "店舗展開が「要」になりました。実施状況を入力してください"));
-      if (ROLLOUT_CLOSED.includes(values.rstat) && (set.rstat || set.rdone)) log.push({ to: isAdmin() ? s.dept || ADMIN : ADMIN, text: `店舗展開 ${values.rstat}（${rolloutDateLabel(values.rstat)} ${values.rdone}）：${cur.title}` });
-      else if (values.rstat === "未実施" && (set.rstat || set.rplan)) log.push({ to: isAdmin() ? s.dept || ADMIN : ADMIN, text: `店舗展開 実施予定 ${values.rplan}：${cur.title}` });
-      send(cur, set, "rollout", log.filter(l => l.to && !UNDECIDED.includes(l.to)), "店舗展開を保存しました。");
-    };
+    rform.onsubmit = e => { e.preventDefault(); save(cur, "rollout"); };
   }
 
   const form = $("#answer");
   if (!form) return;
-  const required = !isAdmin();
-  const syncReq = () => { if ($("#plan-req")) $("#plan-req").hidden = DONE.includes($("#f-status").value); };
+  const syncReq = () => { for (const id of ["#plan-req", "#next-req"]) if ($(id)) $(id).hidden = DONE.includes($("#f-status").value); };
   $("#f-status").onchange = syncReq; syncReq();
-  form.onsubmit = e => {
-    e.preventDefault();
-    const s = shown(cur), err = $("#f-err");
-    const fail = (msg, el) => { err.textContent = msg; err.hidden = false; if (el) el.focus(); };
-    const status = $("#f-status").value, plan = fromInput($("#f-plan").value) || (parse(s.plan) ? "" : s.plan);
-    const answer = $("#f-answer").value.trim(), next = $("#f-next").value.trim();
-    if (required && !answer) return fail("部門回答を入力してください。", $("#f-answer"));
-    if (required && !DONE.includes(status) && !plan) return fail("完了予定日を入力してください。", $("#f-plan"));
-    if (required && plan && parse(plan) && parse(plan) < TODAY && plan !== s.plan) return fail("完了予定日に過去の日付は指定できません。", $("#f-plan"));
-    if (answer.startsWith("=") || next.startsWith("=")) return fail("先頭を「=」にはできません。");
-    const values = { status, plan, answer: answer || (answered(s) ? "(回答なし)" : s.answer || "(回答なし)"), next, appr: required ? "確認待ち" : "承認済" };
-    const set = {}; for (const k of Object.keys(values)) if (values[k] !== (s[k] || "")) set[k] = values[k];
-    if (!Object.keys(set).filter(k => k !== "appr").length) return fail("変更がありません。");
-    const log = required
-      ? [{ to: ADMIN, text: `${s.dept}が回答（${status}${plan ? "・完了予定 " + plan : ""}）：${cur.title}` }]
-      : deptLog(cur, `管理者が回答を更新（${status}）`);
-    send(cur, set, required ? "answer" : "admin", log, required ? "回答を送信しました。管理者の確認待ちになります。" : "保存しました。");
-  };
+  form.onsubmit = e => { e.preventDefault(); save(cur, "answer"); };
 }
 
 $("#role").onchange = e => { role = e.target.value; lsSet(ROLE_STORE, role); view = view === "all" ? "all" : "todo"; selected = null; rejectOpen = false; q = ""; impFilter = ""; deptFilter = ""; stateFilter = ""; render(); };
