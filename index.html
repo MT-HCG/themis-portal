@@ -293,8 +293,8 @@ button.mail.notice.new { background: var(--accent-soft); }
 <script>
 // ---- web version: sign in with Microsoft and read/write OneDrive through Graph
 window.WEB_PORTAL = (() => {
-  const CFG = {"clientId": "f878d033-49e8-46e1-9b0d-462c2d87d6fa", "tenantId": "9a479428-f83e-4a2e-b0f7-0fdac44a610d", "folder": "/社内対応管理/ポータル", "inbox": "回答", "dataFile": "portal-data.js", "scopes": ["Files.ReadWrite"]};
-  const GRAPH = "https://graph.microsoft.com/v1.0/me/drive/root:";
+  const CFG = {"clientId": "f878d033-49e8-46e1-9b0d-462c2d87d6fa", "tenantId": "9a479428-f83e-4a2e-b0f7-0fdac44a610d", "folder": "/社内対応管理/ポータル", "inbox": "回答", "dataFile": "portal-data.js", "scopes": ["Files.ReadWrite"], "drive": "/me/drive"};
+  const GRAPH = `https://graph.microsoft.com/v1.0${CFG.drive}/root:`;
   const enc = p => p.split("/").map(encodeURIComponent).join("/");
   const app = new msal.PublicClientApplication({
     auth: { clientId: CFG.clientId, authority: `https://login.microsoftonline.com/${CFG.tenantId}`,
