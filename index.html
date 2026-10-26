@@ -109,6 +109,8 @@ tbody tr.row:hover { background: var(--surface-2); }
 tbody tr.row[aria-selected="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
 td.r, th.r { text-align: right; }
 .sub2 { display: block; font-size: 11.5px; color: var(--muted); font-weight: 400; }
+.linkchip { border: 0; cursor: pointer; margin: 0 4px 4px 0; font: inherit; font-size: 11.5px; }
+.links { display: flex; flex-wrap: wrap; }
 .empty { padding: 28px 12px; color: var(--muted); text-align: center; }
 .summary td.hot { color: var(--bad); font-weight: 700; }
 .summary td.wait { color: var(--info); font-weight: 700; }
@@ -187,6 +189,8 @@ form { display: grid; gap: 12px; }
 .help img { border-radius: 50%; }
 table.wide td { white-space: nowrap; }
 table.wide td.title { white-space: normal; min-width: 220px; }
+table.wide td.ldept { white-space: normal; min-width: 7em; }
+table.wide td.llink { white-space: normal; min-width: 8em; }
 table.wide td.ans { white-space: normal; min-width: 200px; max-width: 320px; }
 .dept-sel { font: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--fg); max-width: 170px; }
 .sub2.pend { color: var(--info); font-weight: 700; }
@@ -425,6 +429,7 @@ const pendingOf = id => Object.entries(local.pending).filter(([, p]) => p.id ===
 const shown = i => Object.assign({}, i, ...pendingOf(i.id).map(([, p]) => p.set));
 
 const items = DATA ? DATA.items : [];
+const laws = DATA ? DATA.laws || [] : [];  // 法令検索: every law of the source 法改正一覧 (see graph_portal.export_laws)
 const UNDECIDED = ["", "対応部門確認", "未定", "要確認"];
 const undecided = i => UNDECIDED.includes((shown(i).dept || "").trim());
 const resolved = s => DONE.includes(s.status);
@@ -468,6 +473,7 @@ const isAdmin = () => role === ADMIN;
 let seen = lsGet(SEEN_STORE, {});
 
 let showRecord = lsGet("houkaisei-portal-record", false);
+let lq = "", limp = "", lstate = "", llink = "", lawSel = null;
 let view = "todo", selected = null, q = "", impFilter = "", deptFilter = "", stateFilter = "", helpOpen = !DATA, rejectOpen = false;
 let sort = { key: "eff", dir: 1 };
 let dirHandle = null, dirState = "unknown";
@@ -550,10 +556,12 @@ function render() {
   roleSel.value = role;
   roleSel.style.display = $("label[for=role]").style.display = roles.length > 1 ? "" : "none";
   const v = views();
-  if (!v[view]) view = "todo";
+  const lawView = view === "laws" && !!DATA;
+  if (!v[view] && !lawView) view = "todo";
   const isAll = view === "all";
-  let list = v[view][1].slice();
-  if (q) list = list.filter(i => [i.id, i.title, i.law, shown(i).dept, i.dest, shown(i).answer, i.impact].join(" ").includes(q));
+  let list = (v[view] || v.all)[1].slice();
+  const qt = q.trim();
+  if (qt) list = list.filter(i => [i.id, i.title, i.law, shown(i).dept, i.dest, shown(i).answer, i.impact].join(" ").includes(qt));
   if (impFilter) list = list.filter(i => i.imp === impFilter);
   if (isAll && deptFilter) list = list.filter(i => shown(i).dept === deptFilter);
   if (isAll && stateFilter) list = list.filter(i => stateFilter === "完了予定超過" ? overdue(i) : stateFilter === "店舗展開 未完了" ? rolloutOpen(i)
@@ -571,6 +579,7 @@ function render() {
     </div>
     <div class="menu-group"><div class="menu-title">共有</div>
       <button data-view="all" aria-current="${isAll}">${v.all[0]}<span class="c num">${v.all[1].length}</span></button>
+      <button data-view="laws" aria-current="${lawView}">法令検索<span class="c num">${laws.length}</span></button>
       <button id="go-notice">お知らせ<span class="c num ${unread ? "alert" : ""}">${unread}</span></button>
     </div>
     ${isAdmin() ? `<div class="menu-group"><div class="menu-title">回答の保存先</div>
@@ -584,7 +593,7 @@ function render() {
   $("#main").innerHTML = `
     ${DATA && isAdmin() ? summary() : ""}
     ${helpOpen ? help() : ""}
-    ${!DATA ? "" : `
+    ${!DATA ? "" : lawView ? lawPanel() : `
     ${noticePanel(news)}
     <section class="panel" id="list" aria-label="項目一覧">
       <div class="panel-head"><h2>${esc(v[view][0])}</h2><span class="sub num">${list.length}件</span>
@@ -626,7 +635,7 @@ function render() {
     </section>`}`;
 
   const cur = items.find(i => i.id === selected);
-  $("#pane").innerHTML = cur ? detail(cur) : `<div class="empty">${DATA ? "一覧から項目を選んでください。" : "データがまだありません。"}</div>`;
+  $("#pane").innerHTML = lawView ? lawDetail(laws.find(l => l.no === lawSel)) : cur ? detail(cur) : `<div class="empty">${DATA ? "一覧から項目を選んでください。" : "データがまだありません。"}</div>`;
   bind();
   stickyOffsets();
 }
@@ -701,6 +710,7 @@ function help() {
         <div><h3>画面の見方</h3>
           <ul><li><b>管理者の画面</b>：部門の回答と完了予定日を確認し、「承認」または「差戻し」します。担当部門の決定・変更、店舗展開の要否もここで決めます。上の「部門別の状況」は常に表示され、数字をクリックするとその一覧に絞り込みます。</li>
           <li><b>部門の画面</b>：自部門の項目が表示されます。回答と完了予定日を入力して送信すると、管理者の確認待ちになります。</li>
+          <li><b>法令検索</b>：毎日の「法改正定期確認」で集めた法令を、言葉・重要度・状態・社内対応の有無で探せます（一覧から外れた法令も残しています）。社内対応の項目になっている法令は、印を押すとその項目を開けます。</li>
           <li><b>全件一覧</b>：全部門の項目と回答を一覧で見られます。部門・状態・重要度で絞り込み、見出しをクリックすると並べ替えます。部門の画面では、他部門の項目は閲覧のみです。</li>
           <li>右上の「表示する画面」で部門・管理者を切り替えます。Web版では、サインインしたアカウントに合わせて開ける画面が決まります（部門のアカウントは自部門の画面だけ）。送信した内容は1時間以内に正本Excelへ反映されます。</li></ul></div>
         <div><h3>部門の流れ</h3>
@@ -1033,6 +1043,86 @@ function confirmSave(cur, set, missing, ok) {
 
 const deptLog = (cur, text) => undecided(cur) ? [] : [{ to: shown(cur).dept, text: `${text}：${cur.title}` }];
 
+// ---- search boxes: the list is redrawn on every change, but not while a Japanese (IME) conversion is in
+// progress (redrawing then would cancel it), and the box keeps what was typed (spaces included).
+function searchBox(sel, set) {
+  const el = $(sel);
+  if (!el) return;
+  let composing = false;
+  const apply = () => {
+    set(el.value);
+    const pos = el.selectionStart;
+    render();
+    const n = $(sel);
+    n.focus();
+    n.setSelectionRange(pos, pos);
+  };
+  el.addEventListener("compositionstart", () => { composing = true; });
+  el.addEventListener("compositionend", () => { composing = false; apply(); });
+  el.oninput = e => { if (!composing && !e.isComposing) apply(); };
+}
+
+// ---- 法令検索
+const LAW_TEXT = ["no", "title", "kubun", "area", "dept", "action", "change", "unsure", "note", "status", "state"];
+const lawItems = law => items.filter(i => i.no === law.no);
+function lawList() {
+  const words = lq.trim().split(/\s+/).filter(Boolean);
+  return laws.filter(l => {
+    const hay = LAW_TEXT.map(k => l[k] || "").join(" ");
+    if (words.some(w => !hay.includes(w))) return false;
+    if (limp && l.imp !== limp) return false;
+    if (lstate && l.state !== lstate) return false;
+    if (llink === "あり" && !lawItems(l).length) return false;
+    if (llink === "なし" && lawItems(l).length) return false;
+    return true;
+  });
+}
+const lawLinks = law => lawItems(law).map(i => `<button class="chip st-${stage(i)} linkchip" type="button" data-open="${esc(i.id)}" title="${esc(i.id)} を開く">${esc(shown(i).dept || "部門未定")}：${stage(i)}</button>`).join("");
+function lawPanel() {
+  const list = lawList();
+  if (!list.some(l => l.no === lawSel)) lawSel = list[0]?.no ?? null;
+  const states = [...new Set(laws.map(l => l.state).filter(Boolean))];
+  return `<section class="panel" id="list" aria-label="法令検索">
+    <div class="panel-head"><h2>法令検索</h2><span class="sub num">${list.length}件／${laws.length}件</span>
+      <div class="tools">
+        <input id="lq" type="search" placeholder="法令名・対象業務・担当部門・対応内容で検索" value="${esc(lq)}" aria-label="法令を検索">
+        <select id="limp" aria-label="重要度で絞り込み"><option value="">重要度：すべて</option>${["高", "中", "低"].map(x => `<option ${x === limp ? "selected" : ""}>${x}</option>`).join("")}</select>
+        <select id="lstate" aria-label="状態で絞り込み"><option value="">状態：すべて</option>${states.map(x => `<option ${x === lstate ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
+        <select id="llink" aria-label="社内対応で絞り込み"><option value="">社内対応：すべて</option>${["あり", "なし"].map(x => `<option ${x === llink ? "selected" : ""}>${x}</option>`).join("")}</select>
+      </div>
+    </div>
+    <p class="hint" style="margin:0;padding:6px 12px">毎日の「法改正定期確認」で集めた法令です（一覧から外れたものも含みます）。社内対応の項目になっているものは、右の印から開けます。</p>
+    ${list.length ? `<div class="scroll"><table class="wide">
+      <thead><tr><th>No.</th><th>法令・制度名</th><th>重要度</th><th>施行・適用日</th><th>担当部門</th><th>社内対応</th></tr></thead>
+      <tbody>${list.map(l => `<tr class="row" data-law="${esc(l.no)}" aria-selected="${l.no === lawSel}" tabindex="0">
+        <td class="num">${esc(l.no)}</td>
+        <td class="title">${esc(l.title)}${l.state || l.kubun ? `<span class="sub2">${esc([l.state, l.kubun].filter(Boolean).join("・"))}</span>` : ""}${l.inLatest ? "" : `<span class="sub2">最新の一覧にはありません</span>`}</td>
+        <td>${l.imp ? `<span class="chip imp-${esc(l.imp)}">${esc(l.imp)}</span>` : ""}</td>
+        <td class="num">${esc(l.eff) || "—"}</td>
+        <td class="ldept">${esc(l.dept) || "—"}</td>
+        <td class="llink">${lawLinks(l) || `<span class="sub2">なし</span>`}</td>
+      </tr>`).join("")}</tbody></table></div>`
+    : `<div class="empty">${laws.length ? "条件に合う法令はありません。" : "法令のデータがまだありません（次の自動更新で作られます）。"}</div>`}
+  </section>`;
+}
+function lawDetail(l) {
+  if (!l) return `<div class="empty">一覧から法令を選んでください。</div>`;
+  const urls = (l.url || "").split(/\s+/).filter(u => /^https?:\/\//.test(u));
+  const row = (k, v) => v ? `<dt>${k}</dt><dd>${esc(v)}</dd>` : "";
+  const box = (k, v) => v ? `<div class="section"><span class="label">${k}</span><div class="box">${esc(v)}</div></div>` : "";
+  return `<div class="chips"><span class="num">No. ${esc(l.no)}</span>${l.imp ? `<span class="chip imp-${esc(l.imp)}">重要度 ${esc(l.imp)}</span>` : ""}${l.state ? `<span class="chip">${esc(l.state)}</span>` : ""}</div>
+    <h2>${esc(l.title)}</h2>
+    <dl class="meta">${row("状態区分", l.kubun)}${row("対象業務", l.area)}${row("担当部門", l.dept)}${row("確認日", l.checked)}${row("対応期限", l.due)}${row("対応状況", l.status)}${row("専門家確認", l.expert)}</dl>
+    <div class="dates">
+      <div class="date-card"><span class="k">公布・公表日</span><span class="v num">${esc(l.pub) || "—"}</span></div>
+      <div class="date-card key"><span class="k">施行・適用日</span><span class="v num">${esc(l.eff) || "—"}</span>${effBadge(l.eff)}</div>
+    </div>
+    ${box("当社が取るべき対応", l.action)}${box("変更内容", l.change)}${box("不確実な点・確認事項", l.unsure)}${box("備考", l.note)}
+    ${urls.length ? `<div class="section"><span class="label">一次情報</span>${urls.map(u => `<div><a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a></div>`).join("")}</div>` : ""}
+    <div class="section"><span class="label">社内対応</span>${lawLinks(l) ? `<div class="links">${lawLinks(l)}</div><p class="hint">押すと全件一覧でその項目を開きます。</p>` : `<p class="hint">社内対応の項目にはなっていません。</p>`}</div>
+    <p class="hint">${l.inLatest ? "" : "この法令は最新の「法改正一覧」には載っていません（過去の一覧から残しています）。"}</p>`;
+}
+
 function bind() {
   document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { view = b.dataset.view; selected = null; rejectOpen = false; render(); });
   document.querySelectorAll("[data-sel]").forEach(r => {
@@ -1044,8 +1134,16 @@ function bind() {
   document.querySelectorAll("[data-sort]").forEach(b => b.onclick = () => {
     const k = b.dataset.sort; sort = sort.key === k ? { key: k, dir: -sort.dir } : { key: k, dir: 1 }; render();
   });
-  const qi = $("#q");
-  if (qi) qi.oninput = () => { q = qi.value.trim(); const pos = qi.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
+  searchBox("#q", value => { q = value; });
+  searchBox("#lq", value => { lq = value; lawSel = null; });
+  if ($("#limp")) $("#limp").onchange = e => { limp = e.target.value; lawSel = null; render(); };
+  if ($("#lstate")) $("#lstate").onchange = e => { lstate = e.target.value; lawSel = null; render(); };
+  if ($("#llink")) $("#llink").onchange = e => { llink = e.target.value; lawSel = null; render(); };
+  document.querySelectorAll("[data-law]").forEach(r => {
+    const pick = () => { lawSel = r.dataset.law; render(); };
+    r.onclick = pick;
+    r.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } };
+  });
   if ($("#imp")) $("#imp").onchange = e => { impFilter = e.target.value; render(); };
   if ($("#dept")) $("#dept").onchange = e => { deptFilter = e.target.value; selected = null; render(); };
   if ($("#state")) $("#state").onchange = e => { stateFilter = e.target.value; selected = null; render(); };
