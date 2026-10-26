@@ -4,8 +4,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#eef3ef",
-  "theme_color": "#235f3c",
+  "background_color": "#eef2f8",
+  "theme_color": "#1f4e8c",
   "icons": [
     { "src": "icon-32.png", "sizes": "32x32", "type": "image/png", "purpose": "any" },
     { "src": "icon-48.png", "sizes": "48x48", "type": "image/png", "purpose": "any" },
