@@ -76,7 +76,11 @@ button { cursor: pointer; }
 /* Shell */
 .shell { display: grid; grid-template-columns: clamp(168px, 13vw, 200px) minmax(0, 1fr) clamp(330px, 29vw, 460px); gap: 0; min-height: calc(100vh - var(--appbar-h, 44px)); padding-inline: 0; }
 @media (max-width: 1180px) { .shell { grid-template-columns: 180px minmax(0, 1fr); } .pane { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); } }
-@media (max-width: 720px) { .shell { grid-template-columns: minmax(0, 1fr); } .menu { border-right: 0; border-bottom: 1px solid var(--line); } }
+@media (max-width: 720px) {
+  .shell { grid-template-columns: minmax(0, 1fr); } .menu { border-right: 0; border-bottom: 1px solid var(--line); }
+  /* Phones: what a tap opens lies below the menu; keep it clear of the sticky app bar when scrolled to. */
+  #list, #notice, .panel[aria-label="使い方"], #pane { scroll-margin-top: calc(var(--appbar-h, 44px) + 8px); }
+}
 
 .menu { background: var(--surface); border-right: 1px solid var(--line); padding-block: 12px; padding-inline: 10px; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 14px; min-width: 0; }
 .menu-group { display: grid; gap: 2px; }
@@ -651,6 +655,8 @@ function reveal(el) {
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
+// Phones stack menu, list and details in one column, so a tap would change content out of sight: scroll to it.
+const onPhone = () => matchMedia("(max-width: 720px)").matches;
 function stickyOffsets() {
   const root = document.documentElement.style, bar = $(".appbar"), sum = $(".summary");
   root.setProperty("--appbar-h", `${bar ? bar.offsetHeight : 44}px`);
@@ -1124,9 +1130,9 @@ function lawDetail(l) {
 }
 
 function bind() {
-  document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { view = b.dataset.view; selected = null; rejectOpen = false; render(); });
+  document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { view = b.dataset.view; selected = null; rejectOpen = false; render(); if (onPhone()) reveal($("#list") || $("#notice") || $("#main")); });
   document.querySelectorAll("[data-sel]").forEach(r => {
-    const pick = () => { selected = r.dataset.sel; rejectOpen = false; render(); };
+    const pick = () => { selected = r.dataset.sel; rejectOpen = false; render(); if (onPhone()) reveal($("#pane")); };
     r.onclick = pick;
     r.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } };
   });
@@ -1140,7 +1146,7 @@ function bind() {
   if ($("#lstate")) $("#lstate").onchange = e => { lstate = e.target.value; lawSel = null; render(); };
   if ($("#llink")) $("#llink").onchange = e => { llink = e.target.value; lawSel = null; render(); };
   document.querySelectorAll("[data-law]").forEach(r => {
-    const pick = () => { lawSel = r.dataset.law; render(); };
+    const pick = () => { lawSel = r.dataset.law; render(); if (onPhone()) reveal($("#pane")); };
     r.onclick = pick;
     r.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } };
   });
