@@ -9,6 +9,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1f4e8c">
+<style>
+.signin { position: fixed; inset: 0; z-index: 50; display: grid; place-content: center; gap: 12px; padding: 24px;
+  text-align: center; background: var(--bg, #eef2f8); }
+.signin .btn { justify-self: center; padding: 10px 28px; font-size: 15px; }
+.signin .msg { color: var(--bad, #b42318); min-height: 1.4em; }
+</style>
 <title>法改正 社内ポータル Θέμις</title>
 <link rel="icon" type="image/svg+xml" sizes="any" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiB2aWV3Qm94PSIwIDAgNTEyIDUxMiI+CjxjaXJjbGUgY3g9IjI1NiIgY3k9IjI1NiIgcj0iMjU2IiBmaWxsPSIjMWIzZjczIi8+CjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI1NiAyNTYpIHNjYWxlKDEuMSkgdHJhbnNsYXRlKC0yNTYgLTE5NikiPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAgNDAwKSBzY2FsZSgxIC0xKSI+PHBhdGggZD0iTTI1NiAzNCBMMjczIDcyIEwyNzMgMjgxIEwyMzkgMjgxIEwyMzkgNzIgWiIgZmlsbD0iI2I4YzllMCIvPjxyZWN0IHg9IjE5MyIgeT0iMjgyIiB3aWR0aD0iMTI2IiBoZWlnaHQ9IjE1IiByeD0iNSIgZmlsbD0iI2M5YTI0YiIvPjxyZWN0IHg9IjI0NyIgeT0iMjk2IiB3aWR0aD0iMTgiIGhlaWdodD0iNTQiIGZpbGw9IiNjOWEyNGIiLz48Y2lyY2xlIGN4PSIyNTYiIGN5PSIzNTQiIHI9IjEyLjUiIGZpbGw9IiNjOWEyNGIiLz48L2c+CiAgICA8cGF0aCBkPSJNMTEzIDEzMiBMNTggMjM4IE0xMTMgMTMyIEwxNjggMjM4IE0zOTkgMTMyIEwzNDQgMjM4IE0zOTkgMTMyIEw0NTQgMjM4IiBzdHJva2U9IiNjOWEyNGIiIHN0cm9rZS13aWR0aD0iMTgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgZmlsbD0ibm9uZSIvPgogIDxyZWN0IHg9Ijg4IiB5PSIxMjUiIHdpZHRoPSIzMzYiIGhlaWdodD0iMjQiIHJ4PSIxMiIgZmlsbD0iI2M5YTI0YiIvPgogIDxjaXJjbGUgY3g9IjI1NiIgY3k9IjEyOC41IiByPSIxNCIgZmlsbD0iI2M5YTI0YiIvPgogIDxwYXRoIGQ9Ik01NyAyMzggSDE2OSBBNTYgNTQgMCAwIDEgNTcgMjM4IFoiIGZpbGw9IiNjOWEyNGIiLz4KICA8cGF0aCBkPSJNMzQzIDIzOCBINDU1IEE1NiA1NCAwIDAgMSAzNDMgMjM4IFoiIGZpbGw9IiNjOWEyNGIiLz4KPC9nPgo8L3N2Zz4K">
 <link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAFFElEQVR42r2XW2xUVRSGv3XmzEyntTO90mZqgkilUiJySUQuRaJFkPggIRbigwQfkASICgQFCakQvCshhEQwXh6kJECsIAEEL224BEkJSEpLm4JiaDttp53O9Da3nu1D2ynQkp6phP129t5Z+z//+vde6xfMjty1drfbukCEV5ViEpAhkKFAAV7AK0KVQjvY0Bk4yaV9ETNhZaQNrjnvpSZp4c0IqwR5xCRcv1Lq6y7D9qH/7Me+0QHIL7blZAbWoGQLQiqjGQofwvb6luQ9VBWHTQNIm7HW6bDbShGe5wEMpdSRYCjyetufuwMjAnDPfisPXT8ikDdS4OSEXgA6ghYTZHAdYXFD2RfX7wvAPW99hhicR3jCzJ999PItADYdG2uWiVpDReZ4zuxuGZjTYqvTV1oxOGr2cIBeBVHDfCpEZIIm1lKmr7QOAeBOSl4vwsx4ctsYsOHpsMWlBxGZ7U5KXn8XgOyCtZnAZh7aUJuyZm0YA6ADWMS6HSHZjOgWTWyLfackRAFYOjWWUo5Xp40oShFx6rqxDVglqdPfdSUmRZsRRuTysbQgbzzb1EedppGWpFCAr0swjD4xfHshi3/aEsywEOrutGaJu2D9K6JROjA9L9fPmrmNaPJgSTcU7Cxzc+6mcxCCwWJdRC288zZ2R/pvLXC73U57z/B02m1WxuWkA/B3fSuh8PBPf4ojyqMpYVBCd/jeVKiFOsiUOycnZQfRpA+Qw2rw9o/jMNRQOnKy09m27jUAdh3eT0NT25A9mij2Lr0BCJoGT7t7uHzbeSeEKZoSsmOFxxHlpYk+9p7LYkVJLq6EKPPz2kdN+/y8dlwJUVaU5LLvXBaL8n24HNHBFAjZmqBiAJZN8+IP6pyuScHfo3OiOpWiqV5sFiPuw20Wg6KpXo5XpeLv0TlVk4I/qLPsjhsjqOzYQ5SVHKZwQjv7KzJilB+6ko7DarBwoi9uAAvzfTisBof/Su8XobC/IpPCPD9ZyYNi0BTiGfj7xoCN8jpXbLEzpPNzZRpLJrdi182zYNcNljzVytHKNDpDemy+vM5JY8DG0qne/gIlHk0UnoykCHPH+ympyETdUyCPVKaBJnFpYcGTPhAovZp+T0UUSioyeS7XT3piGFF4dFBXAkHLjNpmBxsL64cNGIwIVR6HaQDXPIksm+blwPLaYddrmxx0hCyAuqIpJSfDvRqnalLuG7C6KZGbreYB3PA6qG2+//5falII91owDPWT1tOt/wEqVF7n4pbPPmRzKCIcuJQRtwh/qMgkHB06X+e19+lMEW5sc/2u+y594k+cu+57A3lz45GxFE5ox9nf6SjgtxoXrd22uAHUeR28U/o4BeP9MVV1hHRO17j6b5n6jqrisA4Q1izFNmUsj/RqCSeq0x7Y+98YsHHwcuawsopGta2xfqCl7DMPir0PrRtQalfT+c+b7+qIekLhrSiumg3S3OqnqytIV1eQlrZAPMdf0CLqg4GvWKnrqb8Yco4rOAaqCHCOWF4Ng8REO7fqm6ms+dfs4XVK5IX6s18G7tuWjynYMFkX44yIjAgi1dVnlHz+TjNtuTcixsyWsp11IxqTnGdWp6sE+1ERmfVAcg6/Sk9wWf3FPa1xeMNizT3XvwKRHYJkjU5sNCtRWxrLnd9AsTEqc5oxe2OyzRJ9H2F1nOb0q3CvvsN77tOO/+WO77LnOfYXBaNIKfKBjH6LLmrQnl9TikMNXZ0nzNrz/wC5Df3rtQaqbQAAAABJRU5ErkJggg==">
@@ -324,19 +330,31 @@ window.WEB_PORTAL = (() => {
             redirectUri: location.origin + location.pathname },
     cache: { cacheLocation: "localStorage" },
   });
+  // Inside a SharePoint page (Embed web part) the app runs in an iframe, where the Microsoft sign-in
+  // page refuses to show: sign in through a popup window instead, started by a button click.
+  const framed = window.parent !== window;
   let account = null;
   async function init() {
     await app.initialize();
     const r = await app.handleRedirectPromise();
     account = (r && r.account) || app.getActiveAccount() || app.getAllAccounts()[0] || null;
-    if (!account) { await app.loginRedirect({ scopes: CFG.scopes }); return false; }
+    if (!account) {
+      if (framed) return "popup";
+      await app.loginRedirect({ scopes: CFG.scopes }); return false;
+    }
     app.setActiveAccount(account);
     return true;
+  }
+  async function loginPopup(prompt) {
+    account = (await app.loginPopup({ scopes: CFG.scopes, prompt })).account;
+    app.setActiveAccount(account);
   }
   async function token() {
     try { return (await app.acquireTokenSilent({ scopes: CFG.scopes, account })).accessToken; }
     catch (e) {
-      if (e instanceof msal.InteractionRequiredAuthError) await app.acquireTokenRedirect({ scopes: CFG.scopes, account });
+      if (!(e instanceof msal.InteractionRequiredAuthError)) throw e;
+      if (framed) return (await app.acquireTokenPopup({ scopes: CFG.scopes, account })).accessToken;
+      await app.acquireTokenRedirect({ scopes: CFG.scopes, account });
       throw e;
     }
   }
@@ -369,14 +387,35 @@ window.WEB_PORTAL = (() => {
     await graph("PUT", `${CFG.folder}/${CFG.inbox}/${name}`, text, "application/json",
                 ":/content?@microsoft.graph.conflictBehavior=fail");
   }
-  const switchAccount = () => app.loginRedirect({ scopes: CFG.scopes, prompt: "select_account" });
-  return { init, loadData, upload, switchAccount, user: () => account && account.username, error: null };
+  const switchAccount = async () => {
+    if (!framed) return app.loginRedirect({ scopes: CFG.scopes, prompt: "select_account" });
+    await loginPopup("select_account");
+    location.reload();
+  };
+  return { init, loginPopup, loadData, upload, switchAccount, user: () => account && account.username, error: null };
 })();
+// The sign-in popup comes back to this page: leave it alone, the opener reads the answer and closes it.
+const SIGN_IN_POPUP = !!window.opener && window.opener !== window && /^msal\./.test(window.name);
+// Popups need a click: a button in place of the automatic redirect.
+const signInButton = () => new Promise(resolve => {
+  const box = document.createElement("div");
+  box.className = "signin";
+  box.innerHTML = `<p>テミスを使うには、Microsoft アカウントでサインインしてください。</p>
+    <button type="button" class="btn primary">サインイン</button><p class="msg" role="alert"></p>`;
+  document.body.appendChild(box);
+  box.querySelector("button").onclick = async () => {
+    try { await WEB_PORTAL.loginPopup(); box.remove(); resolve(); }
+    catch (e) { box.querySelector(".msg").textContent = "サインインできませんでした。ポップアップがブロックされていないか確認して、もう一度押してください。"; }
+  };
+});
 (async () => {
   const fresh = document.getElementById("fresh");
   fresh.textContent = "サインインしています…";
+  if (SIGN_IN_POPUP) return;
   try {
-    if (!await WEB_PORTAL.init()) return;  // redirected to the Microsoft sign-in page
+    const ready = await WEB_PORTAL.init();
+    if (!ready) return;  // redirected to the Microsoft sign-in page
+    if (ready === "popup") { fresh.textContent = "サインインしてください"; await signInButton(); }
     fresh.textContent = "OneDrive から読み込んでいます…";
     window.PORTAL_DATA = await WEB_PORTAL.loadData();
   } catch (e) {
