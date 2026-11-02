@@ -322,7 +322,7 @@ button.mail.notice.new { background: var(--accent-soft); }
 <script>
 // ---- web version: sign in with Microsoft and read/write OneDrive through Graph
 window.WEB_PORTAL = (() => {
-  const CFG = {"clientId": "f878d033-49e8-46e1-9b0d-462c2d87d6fa", "tenantId": "9a479428-f83e-4a2e-b0f7-0fdac44a610d", "folder": "/社内対応管理/ポータル", "inbox": "回答", "dataFile": "portal-data.js", "scopes": ["Files.ReadWrite"], "drive": "/me/drive"};
+  const CFG = {"clientId": "f878d033-49e8-46e1-9b0d-462c2d87d6fa", "tenantId": "9a479428-f83e-4a2e-b0f7-0fdac44a610d", "folder": "/社内対応管理/Themis（テミス）法改正 社内ポータル", "inbox": "回答", "dataFile": "portal-data.js", "scopes": ["Files.ReadWrite"], "drive": "/me/drive"};
   const GRAPH = `https://graph.microsoft.com/v1.0${CFG.drive}/root:`;
   const enc = p => p.split("/").map(encodeURIComponent).join("/");
   const app = new msal.PublicClientApplication({
@@ -751,7 +751,7 @@ function help() {
       <img src="${ICON}" alt="Θέμις">
       <div class="cols">
         ${DATA ? "" : DENIED ? `<div><h3>このアカウントでは利用できません</h3><p class="hint">${esc(USER)} はテミスの担当者に登録されていません。管理者（HCG推進室）に登録を依頼するか、登録済みのアカウントでサインインし直してください。</p>
-          <p><button class="btn" id="switch-account" type="button">アカウントを切り替える</button></p></div>` : `<div><h3>データが見つかりません</h3><p class="hint">${window.WEB_PORTAL ? esc(WEB_PORTAL.error || "") + "<br>会社の Microsoft アカウントでサインインし直すか、時間をおいて「最新データを読み込む」を押してください。" : ""}このファイルは OneDrive の「社内対応管理\\ポータル」フォルダーから開いてください。初回は自動更新でデータが作られるまでお待ちください。</p></div>`}
+          <p><button class="btn" id="switch-account" type="button">アカウントを切り替える</button></p></div>` : `<div><h3>データが見つかりません</h3><p class="hint">${window.WEB_PORTAL ? esc(WEB_PORTAL.error || "") + "<br>会社の Microsoft アカウントでサインインし直すか、時間をおいて「最新データを読み込む」を押してください。" : ""}このファイルは OneDrive の「社内対応管理\\Themis（テミス）法改正 社内ポータル」フォルダーから開いてください。初回は自動更新でデータが作られるまでお待ちください。</p></div>`}
         <div><h3>画面の見方</h3>
           <ul><li><b>管理者の画面</b>：部門の回答と完了予定日を確認し、「承認」または「差戻し」します。担当部門の決定・変更、店舗展開の要否もここで決めます。上の「部門別の状況」は常に表示され、数字をクリックするとその一覧に絞り込みます。</li>
           <li><b>部門の画面</b>：自部門の項目が表示されます。回答と完了予定日を入力して送信すると、管理者の確認待ちになります。</li>
@@ -772,7 +772,7 @@ function help() {
           ${window.WEB_PORTAL ? `<ol><li>Edge でこのページを開く</li>
           <li>右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」</li>
           <li>デスクトップとスタートメニューに「法改正 社内ポータル Θέμις」ができます</li></ol>
-          <p class="hint">回答は OneDrive の「社内対応管理 › ポータル › 回答」に直接保存されます。フォルダーの接続やダウンロード・アップロードは不要です。</p></div>
+          <p class="hint">回答は OneDrive の「社内対応管理 › Themis（テミス）法改正 社内ポータル › 回答」に直接保存されます。フォルダーの接続やダウンロード・アップロードは不要です。</p></div>
           <div><h3>iPhone のホーム画面</h3>
           <ol><li>Safari でこのページを開き、会社の Microsoft アカウントでサインイン</li>
           <li>共有ボタン（□に↑）→「ホーム画面に追加」→「追加」</li>
@@ -975,7 +975,7 @@ async function sendChange(cur, values, kind, log) {
   catch (ex) {
     if (ex.name === "AbortError") return null;
     downloadAnswer(name, text); viaDownload = true;
-    toast(`${ex.message} 回答ファイルをダウンロードしたので、「ポータル\\回答」フォルダーへ移してください。`);
+    toast(`${ex.message} 回答ファイルをダウンロードしたので、「Themis（テミス）法改正 社内ポータル\\回答」フォルダーへ移してください。`);
   }
   local.pending[name] = { id: cur.id, kind, set: values, sentAt: Date.now(), sentText: nowText() };
   saveLocal();
