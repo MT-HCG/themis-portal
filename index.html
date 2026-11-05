@@ -324,6 +324,7 @@ button.mail.notice.new { background: var(--accent-soft); }
 window.WEB_PORTAL = (() => {
   const CFG = {"clientId": "f878d033-49e8-46e1-9b0d-462c2d87d6fa", "tenantId": "9a479428-f83e-4a2e-b0f7-0fdac44a610d", "folder": "/社内対応管理/Themis（テミス）法改正 社内ポータル", "inbox": "回答", "dataFile": "portal-data.js", "scopes": ["Files.ReadWrite"], "drive": "/me/drive"};
   const GRAPH = `https://graph.microsoft.com/v1.0${CFG.drive}/root:`;
+  const WHERE = CFG.drive.startsWith("/drives/") ? "SharePoint" : "OneDrive";
   const enc = p => p.split("/").map(encodeURIComponent).join("/");
   const app = new msal.PublicClientApplication({
     auth: { clientId: CFG.clientId, authority: `https://login.microsoftonline.com/${CFG.tenantId}`,
@@ -365,7 +366,7 @@ window.WEB_PORTAL = (() => {
     const r = await fetch(GRAPH + enc(path) + suffix, { method, headers, body });
     if (!r.ok) {
       let msg = ""; try { msg = (await r.json()).error.message; } catch (e) {}
-      const err = new Error(`OneDrive へのアクセスに失敗しました（${r.status}）${msg ? "：" + msg : ""}`);
+      const err = new Error(`${WHERE} へのアクセスに失敗しました（${r.status}）${msg ? "：" + msg : ""}`);
       err.status = r.status; throw err;
     }
     return r;
@@ -392,7 +393,7 @@ window.WEB_PORTAL = (() => {
     await loginPopup("select_account");
     location.reload();
   };
-  return { init, loginPopup, loadData, upload, switchAccount, user: () => account && account.username, error: null };
+  return { init, loginPopup, loadData, upload, switchAccount, where: WHERE, folder: CFG.folder, user: () => account && account.username, error: null };
 })();
 // The sign-in popup comes back to this page: leave it alone, the opener reads the answer and closes it.
 const SIGN_IN_POPUP = !!window.opener && window.opener !== window && /^msal\./.test(window.name);
@@ -416,7 +417,7 @@ const signInButton = () => new Promise(resolve => {
     const ready = await WEB_PORTAL.init();
     if (!ready) return;  // redirected to the Microsoft sign-in page
     if (ready === "popup") { fresh.textContent = "サインインしてください"; await signInButton(); }
-    fresh.textContent = "OneDrive から読み込んでいます…";
+    fresh.textContent = `${WEB_PORTAL.where} から読み込んでいます…`;
     window.PORTAL_DATA = await WEB_PORTAL.loadData();
   } catch (e) {
     WEB_PORTAL.error = e.message || String(e);
@@ -626,7 +627,7 @@ function render() {
       <button id="go-notice">お知らせ<span class="c num ${unread ? "alert" : ""}">${unread}</span></button>
     </div>
     ${isAdmin() ? `<div class="menu-group"><div class="menu-title">回答の保存先</div>
-      <p class="hint" style="padding:0 8px">${dirState === "web" ? `OneDrive に直接保存（${esc(WEB_PORTAL.user() || "")}）` : dirState === "granted" ? "ポータル フォルダーに接続済み" : dirState === "prompt" ? "保存するときに許可を求めます" : "未接続（最初に一度だけ選びます）"}</p>
+      <p class="hint" style="padding:0 8px">${dirState === "web" ? `${WEB_PORTAL.where} に直接保存（${esc(WEB_PORTAL.user() || "")}）` : dirState === "granted" ? "ポータル フォルダーに接続済み" : dirState === "prompt" ? "保存するときに許可を求めます" : "未接続（最初に一度だけ選びます）"}</p>
       <button id="connect">${dirState === "web" ? "アカウントを切り替える" : dirState === "granted" || dirState === "prompt" ? "保存先を選び直す" : "保存先を接続する"}</button>
     </div>` : ""}`;
 
@@ -772,7 +773,7 @@ function help() {
           ${window.WEB_PORTAL ? `<ol><li>Edge でこのページを開く</li>
           <li>右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」</li>
           <li>デスクトップとスタートメニューに「法改正 社内ポータル Θέμις」ができます</li></ol>
-          <p class="hint">回答は OneDrive の「社内対応管理 › Themis（テミス）法改正 社内ポータル › 回答」に直接保存されます。フォルダーの接続やダウンロード・アップロードは不要です。</p></div>
+          <p class="hint">回答は ${WEB_PORTAL.where} の「${esc(WEB_PORTAL.folder.replace(/^\//, "").split("/").join(" › "))} › 回答」に直接保存されます。フォルダーの接続やダウンロード・アップロードは不要です。</p></div>
           <div><h3>iPhone のホーム画面</h3>
           <ol><li>Safari でこのページを開き、会社の Microsoft アカウントでサインイン</li>
           <li>共有ボタン（□に↑）→「ホーム画面に追加」→「追加」</li>
