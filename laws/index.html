@@ -65,6 +65,13 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 
   td.title { font-weight: 700; font-size: 15px; }
   td[data-k]::before { content: attr(data-k) "："; color: var(--muted); }
   .bar .count { margin-left: 0; }
+  /* スマホ: 検索欄は画面の上に固定し、一覧だけがスクロールする */
+  .bar { position: sticky; top: 0; z-index: 2; box-shadow: 0 2px 6px rgba(31, 78, 140, .12); }
+  .bar { gap: 8px; padding: 8px 10px; }
+  .bar input { order: 1; flex: 1 1 65%; min-width: 0; font-size: 16px; }  /* 16px: iPhone が入力時に拡大しない */
+  .bar .count { order: 2; font-size: 12px; white-space: nowrap; }
+  .bar select { order: 3; flex: 1 1 40%; min-width: 0; font-size: 13px; }
+  .bar select#order { order: 4; }
 }
 </style>
 </head>
