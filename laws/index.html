@@ -27,12 +27,13 @@ main { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
 .bar select { padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; background: #fff; color: var(--text); }
 .bar .count { color: var(--muted); font-size: 13px; margin-left: auto; }
 table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-col.c-no { width: 64px; } col.c-imp { width: 72px; } col.c-pub { width: 116px; } col.c-eff { width: 210px; } col.c-url { width: 84px; }
+col.c-no { width: 64px; } col.c-area { width: 150px; } col.c-imp { width: 72px; } col.c-pub { width: 116px; } col.c-eff { width: 210px; } col.c-url { width: 84px; }
 th { background: var(--accent); color: #fff; text-align: left; padding: 9px 10px; font-size: 13px; white-space: nowrap; }
 td { padding: 9px 10px; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
 tbody tr:nth-child(even) td { background: #f7f9fc; }
 .no { color: var(--muted); white-space: nowrap; }
 .date { white-space: nowrap; }
+.area { display: inline-block; margin: 0 4px 3px 0; padding: 1px 7px; border-radius: 10px; font-size: 11.5px; background: #e8eef7; color: #2b4f7e; white-space: nowrap; }
 .imp { display: inline-block; min-width: 2.4em; text-align: center; border-radius: 10px; padding: 1px 8px; font-size: 12px; font-weight: 700; background: #eceff4; }
 .imp.high { background: #fde2e2; color: #a12828; }
 .imp.mid { background: #fff1cc; color: #8a6100; }
@@ -70,7 +71,7 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 
   .bar { gap: 8px; padding: 8px 10px; }
   .bar input { order: 1; flex: 1 1 65%; min-width: 0; font-size: 16px; }  /* 16px: iPhone が入力時に拡大しない */
   .bar .count { order: 2; font-size: 12px; white-space: nowrap; }
-  .bar select { order: 3; flex: 1 1 40%; min-width: 0; font-size: 13px; }
+  .bar select { order: 3; flex: 1 1 28%; min-width: 0; font-size: 13px; padding: 7px 4px; }
   .bar select#order { order: 4; }
 }
 </style>
@@ -84,10 +85,11 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 
   <div class="note">この一覧は参考情報です。正式な内容は、各法令の一次情報（リンク先）でご確認ください。</div>
   <div class="bar">
     <input id="q" type="search" placeholder="法令名で探す（空白区切りで複数）" aria-label="法令名で探す">
+    <select id="area" aria-label="領域"><option value="">領域：すべて</option></select>
     <select id="imp" aria-label="重要度"><option value="">重要度：すべて</option></select>
     <select id="order" aria-label="並び順">
-      <option value="eff">並び：施行・適用日の近い順</option>
-      <option value="pub">並び：公布・公表日の新しい順</option>
+      <option value="eff">並び：施行日の近い順</option>
+      <option value="pub">並び：公布日の新しい順</option>
       <option value="no">並び：No. 順</option>
     </select>
     <span class="count" id="count"></span>
@@ -132,7 +134,8 @@ const ORDERS = {
 function render() {
   const words = $("q").value.trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
   const imp = $("imp").value;
-  const shown = laws.filter(l => (!imp || l.imp === imp) && words.every(w => (l.title + " " + l.no).toLowerCase().includes(w)))
+  const area = $("area").value;
+  const shown = laws.filter(l => (!imp || l.imp === imp) && (!area || l.areas.includes(area)) && words.every(w => (l.title + " " + l.no).toLowerCase().includes(w)))
                     .sort(ORDERS[$("order").value]);
   $("count").textContent = `${shown.length}件／${laws.length}件`;
   const list = $("list");
@@ -150,13 +153,14 @@ function render() {
     body.append(el("tr", {},
       el("td", { class: "no", "data-k": "No." }, l.no),
       el("td", { class: "title" }, l.title),
+      el("td", { "data-k": "領域" }, ...(l.areas.length ? l.areas.map(a => el("span", { class: "area" }, a)) : ["－"])),
       el("td", { "data-k": "重要度" }, l.imp ? el("span", { class: "imp " + (IMP_CLASS[l.imp] || "") }, l.imp) : "－"),
       el("td", { class: "date", "data-k": "公布・公表日" }, l.pub || "－"),
       el("td", { "data-k": "施行・適用日" }, l.eff || "－"),
       links));
   }
-  const head = el("tr", {}, ...["No.", "法令・制度名", "重要度", "公布・公表日", "施行・適用日", "一次情報"].map(h => el("th", {}, h)));
-  const cols = el("colgroup", {}, ...["c-no", "c-title", "c-imp", "c-pub", "c-eff", "c-url"].map(c => el("col", { class: c })));
+  const head = el("tr", {}, ...["No.", "法令・制度名", "領域", "重要度", "公布・公表日", "施行・適用日", "一次情報"].map(h => el("th", {}, h)));
+  const cols = el("colgroup", {}, ...["c-no", "c-title", "c-area", "c-imp", "c-pub", "c-eff", "c-url"].map(c => el("col", { class: c })));
   list.append(el("table", {}, cols, el("thead", {}, head), body));
 }
 
@@ -166,18 +170,22 @@ $("q").addEventListener("compositionstart", () => { composing = true; });
 $("q").addEventListener("compositionend", () => { composing = false; render(); });
 $("q").addEventListener("input", () => { if (!composing) render(); });
 $("imp").addEventListener("change", render);
+$("area").addEventListener("change", render);
 $("order").addEventListener("change", render);
 
 fetch("laws.json", { cache: "no-cache" })
   .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
   .then(data => {
     laws = (data.laws || []).map(l => ({ no: String(l.no || ""), title: String(l.title || ""), imp: String(l.imp || ""),
-                                         pub: String(l.pub || ""), eff: String(l.eff || ""), urls: l.urls || [] }));
+                                         pub: String(l.pub || ""), eff: String(l.eff || ""), urls: l.urls || [],
+                                         areas: (l.areas || []).map(String) }));
     $("updated").textContent = `最終更新：${data.updatedAt || "－"}`;
     const order = ["高", "中", "低"];
     [...new Set(laws.map(l => l.imp).filter(Boolean))]
       .sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9) || a.localeCompare(b))
       .forEach(v => $("imp").append(el("option", { value: v }, v)));
+    (data.areas || []).filter(a => laws.some(l => l.areas.includes(a)))
+      .forEach(a => $("area").append(el("option", { value: a }, a)));
     render();
   })
   .catch(() => {
