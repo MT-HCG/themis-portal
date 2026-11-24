@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- 公開の法改正一覧（URL を知っている人なら誰でも見られる）。検索エンジンには載せない。 -->
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1f4e8c">
+<title>Themis 法改正一覧</title>
+<link rel="icon" type="image/png" sizes="32x32" href="../icon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<style>
+:root { --accent: #1f4e8c; --bg: #eef2f8; --line: #d6deea; --muted: #5b6b82; --text: #1c2633; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px;
+       font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", "Noto Sans CJK JP", sans-serif; }
+header { background: #fff; border-bottom: 1px solid var(--line); padding: 12px 24px; display: flex; align-items: center; gap: 12px; }
+header img { width: 40px; height: 40px; }
+header h1 { margin: 0; font-size: 20px; color: var(--accent); }
+header .sub { font-size: 13px; color: var(--muted); }
+main { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+.note { background: #fff8e1; border: 1px solid #f0d98a; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 14px; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line);
+       border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+.bar input { flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; }
+.bar select { padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; background: #fff; color: var(--text); }
+.bar .count { color: var(--muted); font-size: 13px; margin-left: auto; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+th { background: var(--accent); color: #fff; text-align: left; padding: 9px 10px; font-size: 13px; white-space: nowrap; }
+td { padding: 9px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+tbody tr:nth-child(even) td { background: #f7f9fc; }
+.no { color: var(--muted); white-space: nowrap; }
+.date { white-space: nowrap; }
+.imp { display: inline-block; min-width: 2.4em; text-align: center; border-radius: 10px; padding: 1px 8px; font-size: 12px; font-weight: 700; background: #eceff4; }
+.imp.high { background: #fde2e2; color: #a12828; }
+.imp.mid { background: #fff1cc; color: #8a6100; }
+.imp.low { background: #e6eef8; color: #2b4f7e; }
+td a { color: var(--accent); margin-right: .8em; white-space: nowrap; }
+.empty { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 24px; text-align: center; color: var(--muted); }
+footer { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 0 30px; }
+@media (max-width: 700px) {
+  header { padding: 10px 16px; }
+  main { margin-top: 14px; }
+  thead { display: none; }
+  table, tbody, tr, td { display: block; width: 100%; }
+  tbody tr { border-top: 1px solid var(--line); padding: 8px 4px; }
+  tbody tr:first-child { border-top: 0; }
+  td { border: 0; padding: 3px 8px; background: none !important; }
+  td.title { font-weight: 700; font-size: 15px; }
+  td[data-k]::before { content: attr(data-k) "："; color: var(--muted); }
+  .bar .count { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <img src="../icon-192.png" alt="">
+  <div><h1>Themis（テミス）法改正一覧</h1><div class="sub" id="updated">読み込み中…</div></div>
+</header>
+<main>
+  <div class="note">この一覧は参考情報です。正式な内容は、各法令の一次情報（リンク先）でご確認ください。</div>
+  <div class="bar">
+    <input id="q" type="search" placeholder="法令名で探す（空白区切りで複数）" aria-label="法令名で探す">
+    <select id="imp" aria-label="重要度"><option value="">重要度：すべて</option></select>
+    <select id="order" aria-label="並び順">
+      <option value="eff">並び：施行・適用日の近い順</option>
+      <option value="pub">並び：公布・公表日の新しい順</option>
+      <option value="no">並び：No. 順</option>
+    </select>
+    <span class="count" id="count"></span>
+  </div>
+  <div id="list"></div>
+  <footer>毎日の法改正定期確認から自動で更新しています。</footer>
+</main>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const el = (tag, attrs, ...children) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) node.setAttribute(k, v);
+  for (const c of children) node.append(c);
+  return node;
+};
+const IMP_CLASS = { "高": "high", "中": "mid", "低": "low" };
+let laws = [];
+
+// The leading date of a text like "2027/09/01（関係規定）" as yyyymmdd, or "" when there is none.
+function dateKey(text) {
+  const m = /^\s*(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})/.exec(text || "");
+  return m ? m[1] + m[2].padStart(2, "0") + m[3].padStart(2, "0") : "";
+}
+const today = (() => { const d = new Date(); return "" + d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0"); })();
+const noKey = law => /^\d+$/.test(law.no) ? [0, Number(law.no)] : [1, law.no];
+const byNo = (a, b) => { const x = noKey(a), y = noKey(b); return x[0] - y[0] || (x[1] < y[1] ? 1 : x[1] > y[1] ? -1 : 0); };
+
+const ORDERS = {
+  // 施行・適用日: the coming ones first (nearest first), then the past ones (latest first), then those without a date.
+  eff: (a, b) => {
+    const rank = d => !d ? 2 : d >= today ? 0 : 1;
+    const x = dateKey(a.eff), y = dateKey(b.eff), rx = rank(x), ry = rank(y);
+    if (rx !== ry) return rx - ry;
+    if (x !== y) return rx === 0 ? (x < y ? -1 : 1) : (x < y ? 1 : -1);
+    return byNo(a, b);
+  },
+  pub: (a, b) => { const x = dateKey(a.pub), y = dateKey(b.pub); return x !== y ? (x < y ? 1 : -1) : byNo(a, b); },
+  no: byNo,
+};
+
+function render() {
+  const words = $("q").value.trim().toLowerCase().split(/[\s　]+/).filter(Boolean);
+  const imp = $("imp").value;
+  const shown = laws.filter(l => (!imp || l.imp === imp) && words.every(w => (l.title + " " + l.no).toLowerCase().includes(w)))
+                    .sort(ORDERS[$("order").value]);
+  $("count").textContent = `${shown.length}件／${laws.length}件`;
+  const list = $("list");
+  list.replaceChildren();
+  if (!shown.length) {
+    list.append(el("div", { class: "empty" }, laws.length ? "条件に合う法令はありません。" : "法令がまだありません。"));
+    return;
+  }
+  const body = el("tbody");
+  for (const l of shown) {
+    const links = el("td", { "data-k": "一次情報" });
+    (l.urls || []).filter(u => /^https?:\/\//.test(u)).forEach((u, i, all) =>
+      links.append(el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, all.length > 1 ? `開く${i + 1}` : "開く")));
+    if (!links.childNodes.length) links.append("－");
+    body.append(el("tr", {},
+      el("td", { class: "no", "data-k": "No." }, l.no),
+      el("td", { class: "title" }, l.title),
+      el("td", { "data-k": "重要度" }, l.imp ? el("span", { class: "imp " + (IMP_CLASS[l.imp] || "") }, l.imp) : "－"),
+      el("td", { class: "date", "data-k": "公布・公表日" }, l.pub || "－"),
+      el("td", { class: "date", "data-k": "施行・適用日" }, l.eff || "－"),
+      links));
+  }
+  const head = el("tr", {}, ...["No.", "法令・制度名", "重要度", "公布・公表日", "施行・適用日", "一次情報"].map(h => el("th", {}, h)));
+  list.append(el("table", {}, el("thead", {}, head), body));
+}
+
+// Keep the Japanese input (IME) undisturbed: redraw only when the conversion is settled.
+let composing = false;
+$("q").addEventListener("compositionstart", () => { composing = true; });
+$("q").addEventListener("compositionend", () => { composing = false; render(); });
+$("q").addEventListener("input", () => { if (!composing) render(); });
+$("imp").addEventListener("change", render);
+$("order").addEventListener("change", render);
+
+fetch("laws.json", { cache: "no-cache" })
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(data => {
+    laws = (data.laws || []).map(l => ({ no: String(l.no || ""), title: String(l.title || ""), imp: String(l.imp || ""),
+                                         pub: String(l.pub || ""), eff: String(l.eff || ""), urls: l.urls || [] }));
+    $("updated").textContent = `最終更新：${data.updatedAt || "－"}`;
+    const order = ["高", "中", "低"];
+    [...new Set(laws.map(l => l.imp).filter(Boolean))]
+      .sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9) || a.localeCompare(b))
+      .forEach(v => $("imp").append(el("option", { value: v }, v)));
+    render();
+  })
+  .catch(() => {
+    $("updated").textContent = "";
+    $("list").replaceChildren(el("div", { class: "empty" }, "一覧を読み込めませんでした。時間をおいて開き直してください。"));
+  });
+</script>
+</body>
+</html>
