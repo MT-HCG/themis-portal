@@ -40,13 +40,24 @@ tbody tr:nth-child(even) td { background: #f7f9fc; }
 .imp.low { background: #e6eef8; color: #2b4f7e; }
 td a { color: var(--accent); margin-right: .8em; white-space: nowrap; }
 .empty { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 24px; text-align: center; color: var(--muted); }
+[hidden] { display: none !important; }
+.gate { max-width: 420px; margin: 40px auto; padding: 0 16px; }
+.gate form { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 22px 20px; }
+.gate h2 { margin: 0 0 8px; font-size: 17px; color: var(--accent); }
+.gate p { margin: 0 0 14px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.gate input[type=password] { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 16px; }
+.gate .remember { display: block; margin: 12px 0 16px; font-size: 13px; }
+.gate button { width: 100%; padding: 10px; border: 0; border-radius: 6px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
+.gate button:disabled { opacity: .6; cursor: wait; }
+.gate .err { margin: 12px 0 0; color: #a12828; font-size: 13px; min-height: 1em; }
+button.link { border: 0; background: none; color: var(--accent); font-size: 12px; text-decoration: underline; cursor: pointer; padding: 0; }
 footer { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 0 30px; }
 /* PC: the title, the note, the search bar and the column names stay; only the rows scroll. */
 @media (min-width: 701px) {
   html, body { height: 100%; }
   body { display: flex; flex-direction: column; overflow: hidden; }
   header { flex: none; }
-  main { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; margin: 16px auto 0; }
+  main:not([hidden]) { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; margin: 16px auto 0; }
   .note, .bar { flex: none; }
   #list { flex: 1; min-height: 0; overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
   #list table { border: 0; border-radius: 0; overflow: visible; }
@@ -79,9 +90,20 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 
 <body>
 <header>
   <img src="../icon-192.png" alt="">
-  <div><h1>法改正_社内ポータル</h1><div class="sub" id="updated">読み込み中…</div></div>
+  <div><h1>法改正_社内ポータル</h1><div class="sub" id="updated"></div></div>
 </header>
-<main>
+<section id="gate" class="gate" hidden>
+  <form id="gateForm" autocomplete="on">
+    <h2>パスワードを入力してください</h2>
+    <p>この一覧は社内向けです。管理者（HCG推進室）から知らされたパスワードを入力してください。</p>
+    <input type="text" name="username" value="法改正_社内ポータル" autocomplete="username" hidden>
+    <input id="pass" type="password" autocomplete="current-password" aria-label="パスワード" required>
+    <label class="remember"><input id="remember" type="checkbox"> この端末では次回から入力しない</label>
+    <button type="submit" id="openBtn">開く</button>
+    <p class="err" id="gateErr" role="alert"></p>
+  </form>
+</section>
+<main id="main" hidden>
   <div class="note">この一覧は参考情報です。正式な内容は、各法令の一次情報（リンク先）でご確認ください。</div>
   <div class="bar">
     <input id="q" type="search" placeholder="法令名で探す（空白区切りで複数）" aria-label="法令名で探す">
@@ -95,7 +117,7 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 
     <span class="count" id="count"></span>
   </div>
   <div id="list"></div>
-  <footer>毎日の法改正定期確認から自動で更新しています。</footer>
+  <footer>毎日の法改正定期確認から自動で更新しています。　<button type="button" id="forget" class="link">この端末のパスワードを消す</button></footer>
 </main>
 <script>
 "use strict";
@@ -173,25 +195,87 @@ $("imp").addEventListener("change", render);
 $("area").addEventListener("change", render);
 $("order").addEventListener("change", render);
 
-fetch("laws.json", { cache: "no-cache" })
-  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-  .then(data => {
-    laws = (data.laws || []).map(l => ({ no: String(l.no || ""), title: String(l.title || ""), imp: String(l.imp || ""),
-                                         pub: String(l.pub || ""), eff: String(l.eff || ""), urls: l.urls || [],
-                                         areas: (l.areas || []).map(String) }));
-    $("updated").textContent = `最終更新：${data.updatedAt || "－"}`;
-    const order = ["高", "中", "低"];
-    [...new Set(laws.map(l => l.imp).filter(Boolean))]
-      .sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9) || a.localeCompare(b))
-      .forEach(v => $("imp").append(el("option", { value: v }, v)));
-    (data.areas || []).filter(a => laws.some(l => l.areas.includes(a)))
-      .forEach(a => $("area").append(el("option", { value: a }, a)));
-    render();
-  })
-  .catch(() => {
-    $("updated").textContent = "";
-    $("list").replaceChildren(el("div", { class: "empty" }, "一覧を読み込めませんでした。時間をおいて開き直してください。"));
-  });
+// ---- パスワード: laws.enc.json is the list encrypted with the passphrase (graph_portal.encrypt_public_laws).
+// The passphrase is checked here only; it is never sent anywhere. "次回から入力しない" keeps it in this browser.
+const KEEP = "themisLaws.passphrase";
+const keep = { get() { try { return localStorage.getItem(KEEP) || ""; } catch (e) { return ""; } },
+               set(v) { try { localStorage.setItem(KEEP, v); } catch (e) {} },
+               clear() { try { localStorage.removeItem(KEEP); } catch (e) {} } };
+const bytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+let encrypted = null;
+
+async function decrypt(passphrase) {
+  if (!encrypted) {
+    const r = await fetch(`laws.enc.json?t=${Date.now()}`, { cache: "no-store" });
+    if (!r.ok) throw new Error("一覧を読み込めませんでした。時間をおいて開き直してください。");
+    encrypted = await r.json();
+  }
+  const secret = new TextEncoder().encode(passphrase.trim().normalize("NFC"));
+  const base = await crypto.subtle.importKey("raw", secret, "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: bytes(encrypted.salt), iterations: encrypted.iter },
+                                            base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  let plain;
+  try { plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes(encrypted.iv) }, key, bytes(encrypted.data)); }
+  catch (e) { const err = new Error("パスワードが違います。"); err.wrong = true; throw err; }
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+function show(data) {
+  laws = (data.laws || []).map(l => ({ no: String(l.no || ""), title: String(l.title || ""), imp: String(l.imp || ""),
+                                       pub: String(l.pub || ""), eff: String(l.eff || ""), urls: l.urls || [],
+                                       areas: (l.areas || []).map(String) }));
+  $("updated").textContent = `最終更新：${data.updatedAt || "－"}`;
+  const order = ["高", "中", "低"];
+  [...new Set(laws.map(l => l.imp).filter(Boolean))]
+    .sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9) || a.localeCompare(b))
+    .forEach(v => $("imp").append(el("option", { value: v }, v)));
+  (data.areas || []).filter(a => laws.some(l => l.areas.includes(a)))
+    .forEach(a => $("area").append(el("option", { value: a }, a)));
+  $("gate").hidden = true;
+  $("main").hidden = false;
+  render();
+}
+
+function askPassphrase(message) {
+  $("updated").textContent = "";
+  $("main").hidden = true;
+  $("gate").hidden = false;
+  $("gateErr").textContent = message || "";
+  $("pass").focus();
+}
+
+$("gateForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const passphrase = $("pass").value;
+  $("openBtn").disabled = true;
+  $("gateErr").textContent = "";
+  try {
+    const data = await decrypt(passphrase);
+    if ($("remember").checked) keep.set(passphrase); else keep.clear();
+    $("pass").value = "";
+    show(data);
+  } catch (err) {
+    $("gateErr").textContent = err.message;
+    if (err.wrong) { $("pass").select(); }
+  } finally {
+    $("openBtn").disabled = false;
+  }
+});
+
+$("forget").addEventListener("click", () => {
+  keep.clear();
+  location.reload();
+});
+
+(async () => {
+  const saved = keep.get();
+  if (!saved) return askPassphrase();
+  try { show(await decrypt(saved)); }
+  catch (err) {
+    if (err.wrong) { keep.clear(); return askPassphrase("パスワードが変わりました。新しいパスワードを入力してください。"); }
+    askPassphrase(err.message);
+  }
+})();
 </script>
 </body>
 </html>
