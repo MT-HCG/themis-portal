@@ -19,7 +19,7 @@ header { background: #fff; border-bottom: 1px solid var(--line); padding: 12px 2
 header img { width: 40px; height: 40px; }
 header h1 { margin: 0; font-size: 20px; color: var(--accent); }
 header .sub { font-size: 13px; color: var(--muted); }
-main { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
+main { margin: 20px 0; padding: 0 24px; }  /* 画面の幅いっぱいに使う（2026-11-27 ユーザー指定） */
 .note { background: #fff8e1; border: 1px solid #f0d98a; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 14px; }
 .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line);
        border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
@@ -27,7 +27,7 @@ main { max-width: 1200px; margin: 20px auto; padding: 0 16px; }
 .bar select { padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; background: #fff; color: var(--text); }
 .bar .count { color: var(--muted); font-size: 13px; margin-left: auto; }
 table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-col.c-no { width: 64px; } col.c-area { width: 150px; } col.c-imp { width: 72px; } col.c-pub { width: 116px; } col.c-eff { width: 210px; } col.c-url { width: 84px; }
+col.c-no { width: 64px; } col.c-area { width: 170px; } col.c-imp { width: 72px; } col.c-pub { width: 116px; } col.c-eff { width: 260px; } col.c-url { width: 84px; }
 th { background: var(--accent); color: #fff; text-align: left; padding: 9px 10px; font-size: 13px; white-space: nowrap; }
 td { padding: 9px 10px; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
 tbody tr:nth-child(even) td { background: #f7f9fc; }
@@ -57,7 +57,7 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 
   html, body { height: 100%; }
   body { display: flex; flex-direction: column; overflow: hidden; }
   header { flex: none; }
-  main:not([hidden]) { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; margin: 16px auto 0; }
+  main:not([hidden]) { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; margin: 16px 0 0; }
   .note, .bar { flex: none; }
   #list { flex: 1; min-height: 0; overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
   #list table { border: 0; border-radius: 0; overflow: visible; }
@@ -68,7 +68,7 @@ footer { text-align: center; color: var(--muted); font-size: 12px; margin: 18px 
 }
 @media (max-width: 700px) {
   header { padding: 10px 16px; }
-  main { margin-top: 14px; }
+  main { margin-top: 14px; padding: 0 16px; }
   thead { display: none; }
   table, tbody, tr, td { display: block; width: 100%; }
   tbody tr { border-top: 1px solid var(--line); padding: 8px 4px; }
@@ -177,7 +177,7 @@ function render() {
       el("td", { class: "title" }, l.title),
       el("td", { "data-k": "領域" }, ...(l.areas.length ? l.areas.map(a => el("span", { class: "area" }, a)) : ["－"])),
       el("td", { "data-k": "重要度" }, l.imp ? el("span", { class: "imp " + (IMP_CLASS[l.imp] || "") }, l.imp) : "－"),
-      el("td", { class: "date", "data-k": "公布・公表日" }, l.pub || "－"),
+      el("td", { "data-k": "公布・公表日" }, l.pub || "－"),
       el("td", { "data-k": "施行・適用日" }, l.eff || "－"),
       links));
   }
